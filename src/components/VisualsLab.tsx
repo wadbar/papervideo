@@ -32,6 +32,8 @@ export default function VisualsLab({ project, onUpdate, onPrev, onNext }: Visual
   const styleDropdownRef = useRef<HTMLDivElement>(null);
   const { getAIProviderInstance } = useSettingsStore();
 
+  const [draggedSceneId, setDraggedSceneId] = useState<string | null>(null);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (styleDropdownRef.current && !styleDropdownRef.current.contains(event.target as Node)) {
@@ -201,6 +203,39 @@ export default function VisualsLab({ project, onUpdate, onPrev, onNext }: Visual
     }
   };
 
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedSceneId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedSceneId || draggedSceneId === targetId) return;
+
+    const oldIndex = project.scenes.findIndex(s => s.id === draggedSceneId);
+    const newIndex = project.scenes.findIndex(s => s.id === targetId);
+    
+    if (oldIndex !== -1 && newIndex !== -1) {
+        const newScenes = [...project.scenes];
+        const [movedScene] = newScenes.splice(oldIndex, 1);
+        newScenes.splice(newIndex, 0, movedScene);
+
+        onUpdate({
+            ...project,
+            scenes: newScenes
+        });
+    }
+    setDraggedSceneId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedSceneId(null);
+  };
+
   useKeyBindings({
     'ArrowDown': () => {
        if (activeIndex < project.scenes.length - 1) setSelectedSceneId(project.scenes[activeIndex + 1].id);
@@ -245,12 +280,17 @@ export default function VisualsLab({ project, onUpdate, onPrev, onNext }: Visual
             {project.scenes.map((scene, idx) => (
               <button
                 key={scene.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, scene.id)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, scene.id)}
+                onDragEnd={handleDragEnd}
                 onClick={() => setSelectedSceneId(scene.id)}
                 className={`w-full text-left p-3 rounded-lg transition-all border ${
                   selectedSceneId === scene.id 
                     ? 'bg-[#1f2128] border-blue-500/50 shadow-lg shadow-blue-500/10' 
                     : 'border-transparent hover:bg-[#1a1b1e] hover:border-[#2a2d35]'
-                }`}
+                } ${draggedSceneId === scene.id ? 'opacity-50' : 'opacity-100'}`}
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[10px] font-bold text-blue-400 tracking-tighter uppercase">Scene {idx + 1}</span>
@@ -550,10 +590,15 @@ export default function VisualsLab({ project, onUpdate, onPrev, onNext }: Visual
                         {project.scenes.map((s, i) => (
                             <div 
                                 key={s.id} 
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, s.id)}
+                                onDragOver={handleDragOver}
+                                onDrop={(e) => handleDrop(e, s.id)}
+                                onDragEnd={handleDragEnd}
                                 onClick={() => setSelectedSceneId(s.id)}
                                 className={`w-32 flex-shrink-0 aspect-video rounded-lg overflow-hidden border-2 cursor-pointer transition-all hover:-translate-y-1 ${
                                     selectedSceneId === s.id ? 'border-blue-500 scale-105 shadow-lg shadow-blue-500/20' : 'border-[#2a2d35] opacity-60 hover:opacity-100 hover:border-[#4e515a]'
-                                }`}
+                                } ${draggedSceneId === s.id ? 'opacity-50' : 'opacity-100'}`}
                             >
                                 {s.imageUrl ? (
                                     <img src={s.imageUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
