@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUserConfig() {
+      return incoming().keys().hasAll(['createdAt', 'updatedAt']) 
+        && incoming().createdAt is timestamp
+        && incoming().updatedAt is timestamp;
+    }
+
+    function isValidYoutubeChannel() {
+      let data = incoming();
+      return data.keys().hasAll(['userId', 'name', 'createdAt', 'updatedAt'])
+        && data.userId == request.auth.uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && (data.keys().hasAll(['description']) ? (data.description is string && data.description.size() <= 5000) : true)
+        && (data.keys().hasAll(['tags']) ? (data.tags is list && data.tags.size() <= 50 && (data.tags.size() == 0 || data.tags[0] is string)) : true)
+        && (data.keys().hasAll(['profileImageUrl']) ? (data.profileImageUrl is string && data.profileImageUrl.size() <= 2000) : true)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidId(userId)
+                    && isValidUserConfig() 
+                    && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidId(userId)
+                    && isValidUserConfig()
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().updatedAt == request.time
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt']);
+      
+      match /youtubeChannels/{channelId} {
+        allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(channelId);
+        allow list: if isSignedIn() && request.auth.uid == userId && isValidId(userId) 
+                    && resource.data.userId == request.auth.uid;
+        allow create: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(channelId)
+                      && isValidYoutubeChannel()
+                      && incoming().createdAt == request.time;
+        allow update: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(channelId)
+                      && isValidYoutubeChannel()
+                      && incoming().createdAt == existing().createdAt
+                      && incoming().userId == existing().userId
+                      && incoming().updatedAt == request.time
+                      && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'tags', 'profileImageUrl', 'updatedAt']);
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(channelId);
+      }
+    }
+  }
+}

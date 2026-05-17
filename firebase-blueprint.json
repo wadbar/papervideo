@@ -1,0 +1,38 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Information about a user",
+      "type": "object",
+      "properties": {
+         "createdAt": { "type": "number", "description": "Timestamp of creation" },
+         "updatedAt": { "type": "number", "description": "Timestamp of last update" }
+      }
+    },
+    "YoutubeChannel": {
+      "title": "YouTube Channel Profile",
+      "description": "Customized YouTube channel profile to post videos for",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the user who owns this channel" },
+        "name": { "type": "string", "description": "Name of the YouTube channel" },
+        "description": { "type": "string", "description": "Description of the YouTube channel" },
+        "tags": { "type": "array", "items": { "type": "string" }, "description": "Default tags for the channel" },
+        "profileImageUrl": { "type": "string", "description": "Avatar/profile photo URL" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "name", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Root user profile document"
+    },
+    "/users/{userId}/youtubeChannels/{channelId}": {
+      "schema": { "$ref": "#/entities/YoutubeChannel" },
+      "description": "YouTube channels belonging to the user"
+    }
+  }
+}
