@@ -54,11 +54,15 @@ export default function Sidebar({
       className="flex flex-col border-r border-[#2a2d35] bg-[#151619] z-20"
     >
       <div className="p-6 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-900/20">
-          <Video className="text-white w-5 h-5" />
+        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-900/20 relative group overflow-hidden">
+          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+          <Video className="text-white w-5 h-5 relative z-10" />
         </div>
         {isSidebarOpen && (
-          <span className="font-bold text-lg tracking-tight">VideoFlow</span>
+          <div className="flex flex-col">
+            <span className="font-bold text-lg tracking-tighter uppercase italic">PAPER<span className="text-blue-500">CREEPER</span></span>
+            <span className="text-[8px] text-blue-500/60 font-mono font-bold tracking-[0.2em] -mt-1 uppercase">Video Orchestrator OS</span>
+          </div>
         )}
       </div>
 
@@ -143,7 +147,23 @@ export default function Sidebar({
         ))}
       </nav>
 
-      <div className="p-4 border-t border-[#2a2d35]">
+      <div className="p-4 border-t border-[#2a2d35] bg-black/20">
+        {isSidebarOpen && (
+          <div className="mb-4 px-3 py-2 rounded-xl bg-blue-900/10 border border-blue-500/20">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest">Node Health</span>
+              <span className="text-[9px] font-mono text-green-500">99.8%</span>
+            </div>
+            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+              <motion.div 
+                 initial={{ width: 0 }}
+                 animate={{ width: '99.8%' }}
+                 className="h-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+              />
+            </div>
+            <p className="text-[8px] text-white/30 mt-1 font-mono uppercase">CHROMIUM 120 // ELECTRON V30</p>
+          </div>
+        )}
         <button 
           onClick={onOpenSettings}
           className="w-full flex items-center gap-3 px-3 py-2 text-[#8e9299] hover:bg-[#1f2128] hover:text-white rounded-lg transition-colors"

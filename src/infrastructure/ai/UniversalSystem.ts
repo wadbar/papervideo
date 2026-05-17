@@ -1,7 +1,7 @@
 /**
- * UniversalEngine.ts
- * Motor de IA definitivo, universais, agnóstico e blindado contra falhas.
- * Arquitetura de Fallback em Nível de Produção.
+ * UniversalSystem.ts
+ * AI Controller, universal, agnostic and failure-shielded.
+ * Production-level Fallback Architecture.
  */
 
 export interface AIResponse {
@@ -86,16 +86,16 @@ export async function generate({
   const start = Date.now();
   const timestamp = new Date().toISOString();
 
-  console.log(`[${timestamp}] [UniversalEngine] INFO: Iniciando processamento...`);
+  console.log(`[${timestamp}] [UniversalSystem] INFO: Starting processing...`);
 
   for (const provider of PROVIDERS) {
     if (!provider.enabled) {
-      console.log(`[${timestamp}] [UniversalEngine] WARN: Provedor ${provider.name} desativado. Pulando...`);
+      console.log(`[${timestamp}] [UniversalSystem] WARN: Provider ${provider.name} disabled. Skipping...`);
       continue;
     }
 
     try {
-      console.log(`[${timestamp}] [UniversalEngine] INFO: Tentando provedor: ${provider.name}...`);
+      console.log(`[${timestamp}] [UniversalSystem] INFO: Attempting provider: ${provider.name}...`);
       const rawContent = await provider.generate(prompt, systemInstruction);
 
       let content: string | object = rawContent;
@@ -105,7 +105,7 @@ export async function generate({
       }
 
       const elapsed = Date.now() - start;
-      console.log(`[${timestamp}] [UniversalEngine] SUCCESS: Provedor ${provider.name} respondeu em ${elapsed}ms.`);
+      console.log(`[${timestamp}] [UniversalSystem] SUCCESS: Provider ${provider.name} responded in ${elapsed}ms.`);
 
       return {
         success: true,
@@ -116,12 +116,12 @@ export async function generate({
       };
     } catch (error) {
       const elapsed = Date.now() - start;
-      console.error(`[${timestamp}] [UniversalEngine] ERROR: Provedor ${provider.name} falhou após ${elapsed}ms. Erro:`, error);
+      console.error(`[${timestamp}] [UniversalSystem] ERROR: Provider ${provider.name} failed after ${elapsed}ms. Error:`, error);
       // Fallback automático para o próximo provedor (Circut Breaker light)
     }
   }
 
-  throw new Error(`[${timestamp}] [UniversalEngine] FATAL: Todos os provedores exauridos.`);
+  throw new Error(`[${timestamp}] [UniversalSystem] FATAL: All providers exhausted.`);
 }
 
 function sanitizeAndParseJSON(input: string): object {
@@ -131,7 +131,7 @@ function sanitizeAndParseJSON(input: string): object {
     const cleanedString = jsonMatch ? jsonMatch[0] : input;
     return JSON.parse(cleanedString);
   } catch (error) {
-    console.error(`[UniversalEngine] ERRO Sanitização JSON:`, error);
-    throw new Error('Falha ao sanitizar resposta JSON da IA.');
+    console.error(`[UniversalSystem] JSON sanitization error:`, error);
+    throw new Error('Failed to sanitize AI JSON response.');
   }
 }

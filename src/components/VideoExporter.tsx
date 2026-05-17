@@ -17,7 +17,13 @@ import {
   Clock,
   AlertTriangle,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Maximize2,
+  Minimize2,
+  Search,
+  FileText,
+  Tags,
+  Type
 } from 'lucide-react';
 
 // ... (skipping some imports for brevity in TargetContent matching, but I will include them in ReplacementContent)
@@ -38,6 +44,8 @@ interface VideoExporterProps {
 export default function VideoExporter({ project, onUpdate, onPrev }: VideoExporterProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // Youtube Upload State
   const [showYoutubeUploader, setShowYoutubeUploader] = useState(false);
@@ -54,7 +62,40 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadETA, setUploadETA] = useState<string>('');
+  const [seoResults, setSeoResults] = useState<{ titles: string[], description: string, tags: string[] } | null>(null);
+  const [showSEOPanel, setShowSEOPanel] = useState(false);
+  const [seoScore, setSeoScore] = useState(0);
   const uploadStartTime = useRef<number>(0);
+
+  const calculateSEOScore = () => {
+      let score = 0;
+      // Title logic
+      if (uploadTitle.length > 5 && uploadTitle.length < 30) score += 10;
+      else if (uploadTitle.length >= 30 && uploadTitle.length <= 70) score += 25;
+      
+      // Description logic
+      if (uploadDescription.length > 100) score += 25;
+      
+      // Tags logic
+      const tagCount = uploadTags.split(',').filter(t => t.trim().length > 0).length;
+      if (tagCount > 0 && tagCount < 5) score += 10;
+      else if (tagCount >= 5) score += 20;
+
+      // Keywords match
+      if (project.keywords) {
+          const matchingKeywords = project.keywords.filter(kw => 
+              uploadTitle.toLowerCase().includes(kw.toLowerCase()) || 
+              uploadDescription.toLowerCase().includes(kw.toLowerCase())
+          );
+          if (matchingKeywords.length > 0) score += 30;
+      }
+      
+      setSeoScore(Math.min(score, 100));
+  };
+
+  useEffect(() => {
+     calculateSEOScore();
+  }, [uploadTitle, uploadDescription, uploadTags]);
   const uploadProgressHistory = useRef<{loaded: number, time: number}[]>([]);
 
   const YOUTUBE_CATEGORIES = [
@@ -90,7 +131,23 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
   useEffect(() => {
     fetchChannels();
     youtubeChannelService.hasToken().then(setHasToken);
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
 
   const handleConnect = async () => {
     try {
@@ -225,6 +282,7 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
   const handleOptimizeSEO = async () => {
     if (isOptimizingSEO) return;
     setIsOptimizingSEO(true);
+    setShowSEOPanel(false);
     try {
       const provider = getAIProviderInstance();
       const seo = await provider.optimizeSEO({
@@ -234,9 +292,11 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
         keywords: project.keywords
       });
       
-      setUploadTitle(seo.titles[0]);
-      setUploadDescription(seo.description);
-      setUploadTags(seo.tags.join(', '));
+      setSeoResults(seo);
+      setShowSEOPanel(true);
+      
+      // Auto-apply if it's the first time and we have a preferred one (optional logic)
+      // For now, let the user choose.
     } catch (err: any) {
       console.error('SEO optimization failed', err);
       alert('SEO Optimization failed: ' + err.message);
@@ -246,10 +306,17 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
   };
 
   return (
-    <div className="flex flex-col h-full gap-8 max-w-4xl mx-auto py-8">
-      <header className="text-center space-y-2">
+    <div ref={containerRef} className={`flex flex-col h-full gap-8 max-w-4xl mx-auto py-8 transition-all ${isFullscreen ? 'bg-[#0a0a0b] p-12 w-full h-full max-w-full overflow-y-auto z-50 fixed inset-0' : ''}`}>
+      <header className="relative text-center space-y-2">
         <h2 className="text-4xl font-black tracking-tight uppercase italic">Final Assembly</h2>
         <p className="text-[#8e9299]">Merging scripts, visuals, and audio into a high-definition final render.</p>
+        <button 
+          onClick={toggleFullscreen}
+          className="absolute right-0 top-0 p-2 text-[#8e9299] hover:text-white hover:bg-[#1f2128] rounded-xl transition-all"
+          title="Toggle Fullscreen"
+        >
+          {isFullscreen ? <Minimize2 className="w-5 h-5"/> : <Maximize2 className="w-5 h-5" />}
+        </button>
       </header>
 
       <AnimatePresence>
@@ -267,7 +334,7 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
                      <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                    </div>
                    <div className="flex flex-col">
-                     <span className="text-xs font-bold uppercase tracking-widest text-blue-400">Rendering Engine Active</span>
+                     <span className="text-xs font-bold uppercase tracking-widest text-blue-400">Rendering Module Active</span>
                      <span className="text-[10px] text-[#8e9299] font-mono">
                        {progress < 25 ? 'Initializing timeline...' : 
                         progress < 50 ? 'Merging sequences and transitions...' : 
@@ -314,7 +381,7 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
                 {isExporting ? (
                     <div className="w-48">
                         <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest mb-1">
-                            <span>Rendering Engine</span>
+                            <span>Rendering Module</span>
                             <span>{progress}%</span>
                         </div>
                         <div className="h-2 bg-white/10 rounded-full overflow-hidden border border-white/5">
@@ -373,6 +440,115 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
                         </div>
                         {!validation.hasAudio && <AlertTriangle className="w-3 h-3 text-yellow-500" />}
                     </div>
+                </div>
+
+                {/* Video Metadata Section */}
+                <div className="p-4 rounded-xl bg-black/20 border border-white/5 space-y-3">
+                    <div className="flex items-center justify-between mb-1">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#4e515a]">Video Metadata</p>
+                        <button 
+                            onClick={handleOptimizeSEO}
+                            disabled={isOptimizingSEO}
+                            className="text-[9px] font-bold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1.5 px-2 py-0.5 bg-blue-400/10 rounded-full border border-blue-400/20 disabled:opacity-50"
+                        >
+                            {isOptimizingSEO ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
+                            <span>AI Optimize</span>
+                        </button>
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-[#8e9299] uppercase">Title</label>
+                        <input 
+                            type="text" 
+                            value={uploadTitle}
+                            onChange={(e) => setUploadTitle(e.target.value)}
+                            className="w-full bg-[#151619] border border-[#2a2d35] rounded-lg px-3 py-2 text-xs text-white focus:border-red-500/50 outline-none transition-all"
+                            placeholder="Video Title..."
+                        />
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-[#8e9299] uppercase">Description</label>
+                        <textarea 
+                            value={uploadDescription}
+                            onChange={(e) => setUploadDescription(e.target.value)}
+                            className="w-full bg-[#151619] border border-[#2a2d35] rounded-lg px-3 py-2 text-xs text-white focus:border-red-500/50 outline-none transition-all resize-none min-h-[80px] custom-scrollbar"
+                            placeholder="Video Description..."
+                        />
+                    </div>
+
+                    {/* SEO Health Monitor */}
+                    <div className="pt-2">
+                        <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[8px] font-bold text-[#4e515a] uppercase tracking-[0.2em]">SEO Health Index</span>
+                            <span className={`text-[10px] font-mono font-bold ${seoScore > 80 ? 'text-green-500' : seoScore > 50 ? 'text-blue-500' : 'text-yellow-500'}`}>
+                                {seoScore}%
+                            </span>
+                        </div>
+                        <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                            <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${seoScore}%` }}
+                                className={`h-full transition-all duration-1000 ${seoScore > 80 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.3)]' : seoScore > 50 ? 'bg-blue-500' : 'bg-yellow-500'}`}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Main View SEO Suggestions */}
+                    <AnimatePresence>
+                        {showSEOPanel && seoResults && !showYoutubeUploader && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="bg-blue-500/5 border border-blue-500/20 rounded-lg overflow-hidden"
+                            >
+                                <div className="p-3 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h5 className="text-[9px] font-bold uppercase tracking-widest text-blue-400 flex items-center gap-1.5">
+                                            <Sparkles className="w-2.5 h-2.5" />
+                                            SEO Suggestions
+                                        </h5>
+                                        <button onClick={() => setShowSEOPanel(false)} className="text-[#4e515a] hover:text-white transition-colors">
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                        <p className="text-[8px] font-bold text-[#4e515a] uppercase">Suggested Titles</p>
+                                        <div className="grid grid-cols-1 gap-1">
+                                            {seoResults.titles.slice(0, 2).map((t, idx) => (
+                                                <button 
+                                                    key={idx}
+                                                    onClick={() => setUploadTitle(t)}
+                                                    className="text-left p-1.5 rounded bg-black/40 border border-white/5 text-[10px] text-gray-400 hover:text-white hover:border-blue-500/30 transition-all truncate"
+                                                >
+                                                    {t}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => setUploadDescription(seoResults.description)}
+                                            className="flex-1 flex items-center justify-center gap-1.5 p-1.5 rounded bg-blue-500/10 border border-blue-500/20 text-[9px] font-bold text-blue-400 hover:bg-blue-500/20 transition-all"
+                                        >
+                                            <FileText className="w-2.5 h-2.5" />
+                                            Apply AI Description
+                                        </button>
+                                        <button 
+                                            onClick={() => setUploadTags(seoResults.tags.join(', '))}
+                                            className="flex-1 flex items-center justify-center gap-1.5 p-1.5 rounded bg-blue-500/10 border border-blue-500/20 text-[9px] font-bold text-blue-400 hover:bg-blue-500/20 transition-all"
+                                        >
+                                            <Tags className="w-2.5 h-2.5" />
+                                            Apply AI Tags
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -443,9 +619,39 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
             <div className="mt-4 pt-6 border-t border-[#2a2d35]">
                  <p className="text-[10px] uppercase font-bold text-[#4e515a] mb-4 tracking-widest">Post-Production Actions</p>
                  <div className="flex gap-4">
-                    <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#1f2128] hover:bg-[#252832] rounded-xl transition-all text-sm font-bold border border-[#2a2d35]">
+                    <button 
+                         className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#1f2128] hover:bg-[#252832] rounded-xl transition-all text-sm font-bold border border-[#2a2d35]"
+                         title="Soon: Combine all clips into a single MP4"
+                         onClick={() => {
+                            if (!validation.hasVisuals) return;
+                            alert("Single MP4 combination requires a backend encoding service. For now, we will download individual clips.");
+                            project.scenes.forEach((scene, i) => {
+                                if (scene.videoUrl) {
+                                    const a = document.createElement('a');
+                                    a.href = scene.videoUrl;
+                                    a.download = `scene-${i+1}.mp4`;
+                                    a.click();
+                                }
+                            });
+                         }}
+                    >
                         <Download className="w-4 h-4" />
-                        <span>Download MP4</span>
+                        <span>Download MP4(s)</span>
+                    </button>
+                    <button 
+                         className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#1f2128] hover:bg-[#252832] rounded-xl transition-all text-sm font-bold border border-[#2a2d35]"
+                         onClick={() => {
+                              const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project, null, 2));
+                              const downloadAnchorNode = document.createElement('a');
+                              downloadAnchorNode.setAttribute("href", dataStr);
+                              downloadAnchorNode.setAttribute("download", `project-${project.id}.json`);
+                              document.body.appendChild(downloadAnchorNode);
+                              downloadAnchorNode.click();
+                              downloadAnchorNode.remove();
+                         }}
+                    >
+                        <Download className="w-4 h-4" />
+                        <span>Backup JSON</span>
                     </button>
                     <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#1f2128] hover:bg-[#252832] rounded-xl transition-all text-sm font-bold border border-[#2a2d35]">
                         <Share2 className="w-4 h-4" />
@@ -509,6 +715,38 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
                 ) : (
                   <>
                     <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-[#151619] border border-[#2a2d35] rounded-2xl">
+                          <div className="flex items-center gap-4">
+                              <div className="relative w-12 h-12 flex items-center justify-center">
+                                  <svg className="w-full h-full -rotate-90">
+                                      <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-[#1f2128]" />
+                                      <motion.circle 
+                                          cx="24" cy="24" r="20" 
+                                          stroke="currentColor" strokeWidth="4" 
+                                          fill="transparent" 
+                                          strokeDasharray={125.6}
+                                          initial={{ strokeDashoffset: 125.6 }}
+                                          animate={{ strokeDashoffset: 125.6 - (125.6 * seoScore) / 100 }}
+                                          className={seoScore > 80 ? 'text-green-500' : seoScore > 50 ? 'text-yellow-500' : 'text-red-500'} 
+                                      />
+                                  </svg>
+                                  <span className={`absolute text-xs font-bold ${seoScore > 80 ? 'text-green-500' : seoScore > 50 ? 'text-yellow-500' : 'text-red-500'}`}>{seoScore}</span>
+                              </div>
+                              <div>
+                                  <h4 className="text-sm font-bold uppercase tracking-widest leading-none">SEO Visibility Score</h4>
+                                  <p className="text-[10px] text-[#8e9299] mt-1 font-mono uppercase">AI_ALGORITHM_READY: {seoScore > 75 ? 'TRUE' : 'FALSE'}</p>
+                              </div>
+                          </div>
+                          <div className="text-right">
+                              <span className="text-[8px] font-bold uppercase text-[#4e515a] tracking-widest block mb-1">Reach Potential</span>
+                              <div className="flex gap-1 justify-end">
+                                  {[...Array(5)].map((_, i) => (
+                                      <div key={i} className={`w-2 h-1.5 rounded-sm ${i < (seoScore / 20) ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-[#2a2d35]'}`} />
+                                  ))}
+                              </div>
+                          </div>
+                      </div>
+
                       <label className="block text-xs font-bold uppercase text-[#8e9299]">Canal de Destino</label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {channels.map(ch => (
@@ -539,9 +777,86 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
                             className="text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-2 px-3 py-1 bg-blue-400/10 rounded-full border border-blue-400/20 disabled:opacity-50"
                           >
                             {isOptimizingSEO ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                            <span>Auto-Optimize SEO</span>
+                            <span>{seoResults ? 'Regenerate SEO' : 'Auto-Optimize SEO'}</span>
                           </button>
                       </div>
+
+                      {/* SEO Suggestions Panel */}
+                      <AnimatePresence>
+                        {showSEOPanel && seoResults && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="mb-6 bg-blue-500/5 border border-blue-500/20 rounded-xl overflow-hidden"
+                          >
+                            <div className="p-4 space-y-4">
+                              <div className="flex items-center justify-between">
+                                <h5 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 flex items-center gap-2">
+                                  <Sparkles className="w-3 h-3" />
+                                  AI SEO Laboratory
+                                </h5>
+                                <button onClick={() => setShowSEOPanel(false)} className="text-gray-500 hover:text-white">
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+
+                              <div className="space-y-2">
+                                <p className="text-[9px] font-bold text-[#4e515a] uppercase tracking-wider">Suggested Titles</p>
+                                <div className="space-y-1.5">
+                                  {seoResults.titles.map((t, idx) => (
+                                    <button
+                                      key={idx}
+                                      onClick={() => {
+                                        setUploadTitle(t);
+                                        // Optional: mark as selected
+                                      }}
+                                      className={`w-full text-left p-2.5 rounded-lg text-xs transition-all border ${
+                                        uploadTitle === t 
+                                          ? 'bg-blue-500/10 border-blue-500 text-blue-400' 
+                                          : 'bg-black/20 border-white/5 text-gray-400 hover:border-white/10 hover:text-gray-200'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${uploadTitle === t ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-[#4e515a]'}`} />
+                                        {t}
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3">
+                                <button
+                                  onClick={() => setUploadDescription(seoResults.description)}
+                                  className="flex items-center gap-2 p-2.5 rounded-lg border border-white/5 bg-black/20 hover:border-blue-500/30 transition-all group"
+                                >
+                                  <div className="p-1.5 rounded bg-gray-900 group-hover:bg-blue-500/20 transition-colors">
+                                    <FileText className="w-3 h-3 text-gray-500 group-hover:text-blue-400" />
+                                  </div>
+                                  <div className="text-left">
+                                    <p className="text-[8px] font-bold uppercase text-[#4e515a]">Description</p>
+                                    <p className="text-[10px] text-gray-400 font-bold group-hover:text-blue-400">Apply AI Meta</p>
+                                  </div>
+                                </button>
+                                <button
+                                  onClick={() => setUploadTags(seoResults.tags.join(', '))}
+                                  className="flex items-center gap-2 p-2.5 rounded-lg border border-white/5 bg-black/20 hover:border-blue-500/30 transition-all group"
+                                >
+                                  <div className="p-1.5 rounded bg-gray-900 group-hover:bg-blue-500/20 transition-colors">
+                                    <Tags className="w-3 h-3 text-gray-500 group-hover:text-blue-400" />
+                                  </div>
+                                  <div className="text-left">
+                                    <p className="text-[8px] font-bold uppercase text-[#4e515a]">Tags</p>
+                                    <p className="text-[10px] text-gray-400 font-bold group-hover:text-blue-400">Apply AI Keywords</p>
+                                  </div>
+                                </button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
                       <input 
                         type="text" 
                         value={uploadTitle}

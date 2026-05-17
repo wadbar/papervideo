@@ -31,11 +31,56 @@ body {
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  transform: translateZ(0); /* Force GPU acceleration */
+  backface-visibility: hidden;
+}
+
+.tech-grid {
+  background-image: linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.glass-ultra {
+  @apply bg-black/40 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)];
+}
+
+.text-glow {
+  text-shadow: 0 0 10px var(--accent-glow);
+}
+
+.performance-mode * {
+  animation: none !important;
+  transition: none !important;
+  backdrop-filter: none !important;
+}
+
+.bg-animate {
+  background: linear-gradient(-45deg, #0a0a0b, #0d1117, #151619, #0a0a0b);
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .glow-on-hover:hover {
   box-shadow: 0 0 15px var(--accent-glow);
   border-color: var(--accent);
+}
+
+.animate-marquee {
+  display: flex;
+  width: fit-content;
+  animation: marquee 40s linear infinite;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -50,6 +95,23 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 10px;
+}
+
+/* Rendering Optimizations */
+#dashboard-root, #studio-root, #project-list {
+  contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+.is-dragging {
+  opacity: 0.25 !important;
+  filter: blur(4px) grayscale(1) !important;
+  transform: scale(0.97) !important;
+  border: 2px dashed rgba(59, 130, 246, 0.5) !important;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.5) !important;
+  cursor: grabbing !important;
+  transition: all 0.2s ease !important;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {

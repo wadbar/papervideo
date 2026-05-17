@@ -27,6 +27,7 @@ export interface AIRequestConfig {
   maxTokens?: number;
   mode?: 'text' | 'image' | 'video' | 'audio';
   payload?: any;
+  signal?: AbortSignal;
 }
 
 export interface AIResponse {
@@ -185,10 +186,12 @@ class AIMotorInternal {
    * Implementa Chain of Responsibility com Circuit Breaker isolado.
    */
   public async execute(config: AIRequestConfig): Promise<AIResponse> {
-    const { responseType = 'text', maxTokens = 2048, mode = 'text' } = config;
+    const { responseType = 'text', maxTokens = 2048, mode = 'text', signal } = config;
     const cacheKey = this.generateHash(config);
     
-    // 1. Verificação de Cache (Aceleração de I/O)
+    if (signal?.aborted) {
+      throw new Error('AI_REQUEST_CANCELLED: Operation aborted by caller.');
+    }
     if (mode === 'text') {
       const cached = this.cache.get(cacheKey);
       if (cached && Date.now() < cached.expires) {
@@ -235,6 +238,11 @@ class AIMotorInternal {
         this.log('INFO', 'GATEWAY', `Invocando ${provider.id.toUpperCase()} [${mode.toUpperCase()}]...`);
         
         const result = await provider.run();
+        
+        if (signal?.aborted) {
+          throw new Error('AI_REQUEST_CANCELLED: Buffer stale after provider resolution.');
+        }
+
         let finalContent = result.content;
 
         // 4. Protocolo de Mitigação de Alucinação (Anti-Hallucination)

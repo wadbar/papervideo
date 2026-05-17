@@ -5,7 +5,8 @@ import {
   Cpu,
   Globe,
   Settings as SettingsIcon,
-  Layout
+  Layout,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useProjectStore } from './core/store/useProjectStore';
@@ -16,6 +17,10 @@ import YoutubeChannelManager from './components/YoutubeChannelManager';
 import ObservabilityDashboard from './components/ObservabilityDashboard';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
+import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
+import ErrorArmor from './components/ErrorArmor';
+import SystemMonitor from './components/SystemMonitor';
+import { sysLog } from './lib/sys';
 
 export default function App() {
   const { 
@@ -45,6 +50,7 @@ export default function App() {
 
   React.useEffect(() => {
     fetchChannels();
+    sysLog('PaperCreeper System active. All subsystems nominal.', 'info');
   }, []);
 
   const openYoutubeManager = (channelId?: string) => {
@@ -79,7 +85,8 @@ export default function App() {
   const activeProject = getActiveProject();
 
   return (
-    <div className="flex h-screen w-full bg-[#0a0a0b] overflow-hidden">
+    <div className={`flex h-screen w-full bg-[#0a0a0b] overflow-hidden tech-grid relative ${systemSettings?.performanceMode ? 'performance-mode' : ''}`}>
+      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-blue-500/5 to-transparent pointer-events-none" />
       <Sidebar 
         isSidebarOpen={isSidebarOpen}
         setSidebarOpen={setSidebarOpen}
@@ -100,20 +107,22 @@ export default function App() {
       <main className={`flex-1 relative overflow-hidden flex flex-col transition-all duration-300 ${isSettingsOpen || isYoutubeManagerOpen ? 'blur-sm' : ''}`}>
         <AnimatePresence mode="wait">
           {view === 'dashboard' ? (
-            <Dashboard 
-              projects={projects} 
-              onCreateProject={handleCreateNewProject} 
-              onSelectProject={handleSelectProject} 
-            />
+            <ErrorArmor key="armor-dash">
+              <Dashboard />
+            </ErrorArmor>
           ) : activeProject ? (
-            <VideoStudio 
-              key="studio"
-              project={activeProject} 
-              onUpdate={updateProject}
-              onBack={() => setView('dashboard')}
-            />
+            <ErrorArmor key="armor-studio">
+              <VideoStudio 
+                key="studio"
+                project={activeProject} 
+                onUpdate={updateProject}
+                onBack={() => setView('dashboard')}
+              />
+            </ErrorArmor>
           ) : view === 'observability' ? (
-            <ObservabilityDashboard key="observability" />
+            <ErrorArmor key="armor-obs">
+              <ObservabilityDashboard key="observability" />
+            </ErrorArmor>
           ) : null}
         </AnimatePresence>
       </main>
@@ -137,7 +146,7 @@ export default function App() {
               <div className="p-6 border-b border-[#2a2d35] flex items-center justify-between bg-[#1f2128]">
                 <div className="flex items-center gap-3">
                   <SettingsIcon className="w-5 h-5 text-blue-400" />
-                  <h3 className="font-bold uppercase tracking-widest">Global AI Engine Config</h3>
+                  <h3 className="font-bold uppercase tracking-widest">Global AI Controller Config</h3>
                 </div>
                 <button onClick={() => setIsSettingsOpen(false)} className="p-2 hover:bg-[#2a2d35] rounded-full">
                   <X className="w-5 h-5" />
@@ -156,7 +165,7 @@ export default function App() {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-bold">Google Gemini</p>
-                        <p className="text-xs text-[#8e9299]">Default Engine (Built-in)</p>
+                        <p className="text-xs text-[#8e9299]">Default Controller (Built-in)</p>
                       </div>
                       <span className="text-[10px] font-bold text-green-500 bg-green-500/10 px-2 py-1 rounded">CONNECTED</span>
                     </div>
@@ -227,6 +236,24 @@ export default function App() {
                   </div>
                 </section>
 
+                <section>
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-orange-400 mb-4 flex items-center gap-2">
+                    <Zap className="w-3 h-3" /> Runtime Optimization
+                  </h4>
+                  <div className="p-4 bg-[#0a0a0b] rounded-xl border border-[#2a2d35] flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold">Industrial Performance Mode</p>
+                      <p className="text-[10px] text-[#8e9299]">Disables non-essential animations and transitions for max efficiency.</p>
+                    </div>
+                    <button 
+                      onClick={() => updateSystemSettings({ performanceMode: !systemSettings.performanceMode })}
+                      className={`w-12 h-6 rounded-full transition-all relative ${systemSettings.performanceMode ? 'bg-orange-500' : 'bg-[#1f2128]'}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${systemSettings.performanceMode ? 'left-7' : 'left-1'}`} />
+                    </button>
+                  </div>
+                </section>
+
                 <div className="p-4 bg-blue-900/10 border border-blue-900/30 rounded-xl">
                   <p className="text-xs text-blue-300 leading-relaxed">
                     <strong>Pro Tip:</strong> VideoFlow automatically detects local endpoints. Running Ollama or LM Studio locally allows for high-privacy script generation and asset orchestration.
@@ -246,6 +273,9 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+
+      <KeyboardShortcutsModal />
+      <SystemMonitor />
     </div>
   );
 }

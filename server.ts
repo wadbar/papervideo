@@ -50,7 +50,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[Omni Architect] API Server rodando na porta ${PORT} com Blindagem OWASP ativa.`);
+    console.log(`[Architecture Node] API Server running on port ${PORT} with industrial shielding.`);
   });
 }
 

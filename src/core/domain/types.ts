@@ -1,3 +1,5 @@
+import { PostProcessingEffects } from '../../lib/visualUtils';
+
 export interface VideoProject {
   id: string;
   title: string;
@@ -12,6 +14,7 @@ export interface VideoProject {
   audio?: {
     narrationUrl?: string;
     musicUrl?: string;
+    musicVariations?: string[];
     musicPrompt?: string;
     narrationVolume?: number;
     musicVolume?: number;
@@ -19,6 +22,7 @@ export interface VideoProject {
   };
   status: 'draft' | 'processing' | 'completed';
   createdAt: number;
+  lastModified?: number;
   exportSettings?: {
     resolution: '1080p' | '4k' | '720p';
     framerate: 24 | 30 | 60;
@@ -36,6 +40,8 @@ export interface Scene {
   motionIntensity?: number;
   motionType?: string;
   imageStyle?: string;
+  transition?: string; // e.g. fade, cut, slide, crosszoom
+  postProcessing?: PostProcessingEffects;
 }
 
 export type ProviderType = 'gemini' | 'ollama' | 'lmstudio' | 'nvidia';

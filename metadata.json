@@ -1,6 +1,11 @@
 {
-  "name": "PAPERCREEPER - AI Video Production",
-  "description": "Estúdio de produção de vídeo definitivo com motor de IA resiliente (Fallback Ollama/Gemini/NVIDIA). Gere roteiros, visuais, thumbnails e publique diretamente no YouTube.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "name": "PaperCreeper Studio",
+  "description": "Industrial-grade distributed architecture orchestrator for high-performance visual pipelines and autonomous agent synergy.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

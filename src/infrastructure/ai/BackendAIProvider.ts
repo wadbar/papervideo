@@ -8,10 +8,10 @@ export class BackendAIProvider implements AIProvider {
     this.token = localStorage.getItem('omni_jwt_token');
   }
 
-  private async fetchAuth(url: string, body?: any) {
+  private async fetchAuth(url: string, body?: any, signal?: AbortSignal) {
     if (!this.token) {
       // Auto-authenticate for the sake of the prototype
-      const res = await fetch('/api/auth/login', { method: 'POST' });
+      const res = await fetch('/api/auth/login', { method: 'POST', signal });
       const data = await res.json();
       this.token = data.token;
       localStorage.setItem('omni_jwt_token', this.token as string);
@@ -25,7 +25,8 @@ export class BackendAIProvider implements AIProvider {
     const response = await fetch(`${this.endpoint}${url}`, {
       method: body ? 'POST' : 'GET',
       headers,
-      body: body ? JSON.stringify(body) : undefined
+      body: body ? JSON.stringify(body) : undefined,
+      signal
     });
 
     if (!response.ok) {
@@ -42,53 +43,64 @@ export class BackendAIProvider implements AIProvider {
     tone?: string, 
     length?: 'short' | 'medium' | 'long', 
     keywords?: string[], 
-    pacing?: 'fast-paced' | 'conversational' | 'slow-burn'
+    pacing?: 'fast-paced' | 'conversational' | 'slow-burn',
+    signal?: AbortSignal
   ): Promise<GenerateScriptResult> {
-    return this.fetchAuth('/script', { idea, targetAudience, tone, length, keywords, pacing });
+    return this.fetchAuth('/script', { idea, targetAudience, tone, length, keywords, pacing }, signal);
   }
 
-  async generateImage(prompt: string): Promise<string> {
-    const res = await this.fetchAuth('/image', { prompt });
+  async generateImage(prompt: string, signal?: AbortSignal): Promise<string> {
+    const res = await this.fetchAuth('/image', { prompt }, signal);
     return res.imageUrl;
   }
 
-  async generateThumbnailVariations(prompt: string): Promise<string[]> {
-    const res = await this.fetchAuth('/image-variations', { prompt });
+  async generateThumbnailVariations(prompt: string, signal?: AbortSignal): Promise<string[]> {
+    const res = await this.fetchAuth('/image-variations', { prompt }, signal);
     return res.imageUrls;
   }
 
-  async generateNarration(text: string, voice: string, volume?: number, speed?: 'slow' | 'normal' | 'fast'): Promise<string> {
-    const res = await this.fetchAuth('/narration', { text, voice, volume, speed });
+  async generateNarration(text: string, voice: string, volume?: number, speed?: 'slow' | 'normal' | 'fast', signal?: AbortSignal): Promise<string> {
+    const res = await this.fetchAuth('/narration', { text, voice, volume, speed }, signal);
     return res.audioUrl;
   }
 
-  async generateMusic(prompt: string): Promise<string> {
-    const res = await this.fetchAuth('/music', { prompt });
+  async generateMusic(prompt: string, signal?: AbortSignal): Promise<string> {
+    const res = await this.fetchAuth('/music', { prompt }, signal);
     return res.musicUrl;
   }
 
-  async generateVideo(sceneDescription: string, baseImageUrl: string, duration?: number, motionIntensity?: number): Promise<string> {
-    const res = await this.fetchAuth('/video', { sceneDescription, baseImageUrl, duration, motionIntensity });
+  async generateMusicVariations(prompt: string, signal?: AbortSignal): Promise<string[]> {
+    const res = await this.fetchAuth('/music-variations', { prompt }, signal);
+    return res.musicUrls;
+  }
+
+  async generateVideo(sceneDescription: string, baseImageUrl: string, duration?: number, motionIntensity?: number, signal?: AbortSignal): Promise<string> {
+    const res = await this.fetchAuth('/video', { sceneDescription, baseImageUrl, duration, motionIntensity }, signal);
     return res.videoUrl;
   }
 
-  async cloneVoice(voiceName: string, audioSampleBase64: string): Promise<string> {
-    const res = await this.fetchAuth('/clone', { voiceName, audioSampleBase64 });
+  async cloneVoice(voiceName: string, audioSampleBase64: string, signal?: AbortSignal): Promise<string> {
+    const res = await this.fetchAuth('/clone', { voiceName, audioSampleBase64 }, signal);
     return res.voiceId;
   }
 
-  async refinePrompt(prompt: string, style?: string): Promise<string> {
-    const res = await this.fetchAuth('/refine', { prompt, style });
+  async refinePrompt(prompt: string, style?: string, signal?: AbortSignal): Promise<string> {
+    const res = await this.fetchAuth('/refine', { prompt, style }, signal);
     return res.refinedPrompt;
   }
 
-  async refineScript(script: string, instructions?: string): Promise<string> {
-    const res = await this.fetchAuth('/refine-script', { script, instructions });
+  async refineScript(script: string, instructions?: string, signal?: AbortSignal): Promise<string> {
+    const res = await this.fetchAuth('/refine-script', { script, instructions }, signal);
     return res.refinedScript;
   }
 
-  async optimizeSEO(projectData: any): Promise<{ titles: string[], description: string, tags: string[] }> {
-    return this.fetchAuth('/seo', projectData);
+  async analyzeVisualConsistency(project: any, signal?: AbortSignal): Promise<string> {
+    const res = await this.fetchAuth('/analyze-consistency', { project }, signal);
+    return res.directive;
+  }
+
+  async optimizeSEO(projectData: any, signal?: AbortSignal): Promise<{ titles: string[], description: string, tags: string[] }> {
+    return this.fetchAuth('/seo', projectData, signal);
   }
 
   async isHealthy(): Promise<boolean> {

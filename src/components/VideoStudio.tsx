@@ -90,9 +90,21 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
           >
             <Keyboard className="w-5 h-5" />
           </button>
-          <button className="flex items-center gap-2 px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors font-medium cursor-pointer shadow-lg active:scale-95">
+          <button 
+            onClick={() => {
+              const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project, null, 2));
+              const downloadAnchorNode = document.createElement('a');
+              downloadAnchorNode.setAttribute("href", dataStr);
+              downloadAnchorNode.setAttribute("download", `project-${project.id}.json`);
+              document.body.appendChild(downloadAnchorNode);
+              downloadAnchorNode.click();
+              downloadAnchorNode.remove();
+            }}
+            className="flex items-center gap-2 px-4 py-1.5 text-sm bg-[#1f2128] hover:bg-[#2a2d35] border border-[#2a2d35] rounded-lg transition-colors font-medium cursor-pointer shadow-lg active:scale-95"
+            title="Download JSON Backup"
+          >
             <Download className="w-4 h-4" />
-            <span>Export</span>
+            <span>Export JSON</span>
           </button>
         </div>
       </header>

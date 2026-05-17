@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Music, 
   Mic, 
@@ -108,13 +108,37 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
     }
   };
 
-  const previewSceneNarration = (sceneIndex: number) => {
+  const previewSceneNarration = async (sceneIndex: number) => {
     const scene = project.scenes[sceneIndex];
     if (!scene?.narrationText) return;
     stopActiveAudio();
-    // In a real app we might generate a temporary preview or use a cached one
-    // For now we just use the existing generateNarration logic but it's fine
+    setIsPreviewing(true);
+    try {
+      const provider = getAIProviderInstance();
+      const narrationUrl = await provider.generateNarration(scene.narrationText, activeVoice, volume, speechSpeed);
+      
+      if (narrationUrl) {
+        const audio = new Audio(narrationUrl);
+        audio.volume = Math.min(volume, 1);
+        setActiveAudio(audio);
+        audio.play();
+        audio.onended = () => setActiveAudio(null);
+      }
+    } catch (error: any) {
+      console.error('Scene preview failed', error);
+      alert(`Preview Failed: ${error.message}`);
+    } finally {
+      setIsPreviewing(false);
+    }
   };
+
+  useEffect(() => {
+    return () => {
+      if (activeAudio) activeAudio.pause();
+      if (mixAudio.narration) mixAudio.narration.pause();
+      if (mixAudio.music) mixAudio.music.pause();
+    };
+  }, [activeAudio, mixAudio]);
 
   const stopActiveAudio = () => {
     if (activeAudio) {
@@ -162,10 +186,10 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
     setIsGenerating('music');
     try {
       const provider = getAIProviderInstance();
-      const musicUrl = await provider.generateMusic(musicPrompt);
+      const musicVariations = await provider.generateMusicVariations(musicPrompt);
       onUpdate({
           ...project,
-          audio: { ...project.audio, musicUrl, musicVolume, musicPrompt }
+          audio: { ...project.audio, musicVariations, musicUrl: undefined, musicVolume, musicPrompt }
       });
     } catch (error: any) {
       console.error('Music generation failed', error);
@@ -177,6 +201,23 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
     } finally {
       setIsGenerating(null);
     }
+  };
+
+  const previewTrack = (url: string) => {
+    stopActiveAudio();
+    const audio = new Audio(url);
+    audio.volume = Math.min(musicVolume, 1);
+    setActiveAudio(audio);
+    audio.play();
+    audio.onended = () => setActiveAudio(null);
+  };
+
+  const selectMusic = (url: string) => {
+    onUpdate({
+        ...project,
+        audio: { ...project.audio, musicUrl: url, musicVariations: undefined, musicVolume, musicPrompt }
+    });
+    stopActiveAudio();
   };
 
   const previewMusic = () => {
@@ -313,12 +354,41 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
               </div>
             </div>
 
+            <div className="pt-4 border-t border-[#2a2d35]">
+                <h4 className="text-[10px] uppercase font-bold text-[#4e515a] mb-3 tracking-widest">Advanced Effects</h4>
+                <div className="flex flex-wrap gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer bg-[#1f2128] border border-[#2a2d35] px-3 py-1.5 rounded-lg">
+                        <input type="checkbox" className="accent-red-500" />
+                        <span className="text-[10px] uppercase font-bold text-gray-300">De-noise</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer bg-[#1f2128] border border-[#2a2d35] px-3 py-1.5 rounded-lg">
+                        <input type="checkbox" className="accent-red-500" />
+                        <span className="text-[10px] uppercase font-bold text-gray-300">Studio EQ</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer bg-[#1f2128] border border-[#2a2d35] px-3 py-1.5 rounded-lg">
+                        <input type="checkbox" className="accent-red-500" defaultChecked />
+                        <span className="text-[10px] uppercase font-bold text-gray-300">Auto Ducking</span>
+                    </label>
+                </div>
+            </div>
+
             <div className="flex-1 p-4 bg-[#0d0d0f] border border-[#2a2d35] rounded-xl overflow-y-auto custom-scrollbar">
                 <h4 className="text-[10px] uppercase font-bold text-[#4e515a] mb-3 tracking-widest">Full Script Preview</h4>
                 <div className="space-y-6">
                     {project.scenes.map((scene, i) => (
-                        <div key={scene.id} className="border-l-2 border-red-900/30 pl-4">
-                             <span className="text-[10px] text-red-500 mb-1 block">Scene {i+1}</span>
+                        <div key={scene.id} className="border-l-2 border-red-900/30 pl-4 group">
+                            <div className="flex items-center justify-between mb-1">
+                               <span className="text-[10px] text-red-500 block">Scene {i+1}</span>
+                               <button 
+                                 onClick={() => previewSceneNarration(i)}
+                                 disabled={isPreviewing}
+                                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-[#1f2128] rounded text-xs text-red-400 flex items-center gap-1"
+                                 title="Preview Scene Narration"
+                               >
+                                 {isPreviewing ? <Loader2 className="w-3 h-3 animate-spin"/> : <Play className="w-3 h-3" />}
+                                 <span className="text-[9px]">Preview</span>
+                               </button>
+                            </div>
                              <p className="text-sm leading-relaxed">{scene.narrationText}</p>
                         </div>
                     ))}
@@ -352,15 +422,6 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
                 )}
                 
                 <div className="flex flex-col gap-2">
-                  <button 
-                    onClick={previewNarration}
-                    disabled={!!isGenerating || isPreviewing || project.scenes.length === 0}
-                    className="w-full flex items-center justify-center gap-2 bg-[#1f2128] hover:bg-[#2a2d35] border border-[#2a2d35] disabled:opacity-50 text-white py-2 rounded-xl transition-all text-xs font-bold"
-                  >
-                    {isPreviewing ? <Loader2 className="w-4 h-4 animate-spin text-red-500" /> : <Play className="w-4 h-4 text-red-500" />}
-                    <span>Preview Scene 1 Narration</span>
-                  </button>
-
                   <button 
                     onClick={generateNarration}
                     disabled={!!isGenerating || isPreviewing || project.scenes.length === 0}
@@ -408,8 +469,34 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-[#2a2d35] rounded-2xl bg-[#0d0d0f]">
-                {project.audio?.musicUrl ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-[#2a2d35] rounded-2xl bg-[#0d0d0f] min-h-[250px]">
+                {project.audio?.musicVariations && project.audio.musicVariations.length > 0 && !project.audio?.musicUrl ? (
+                    <div className="w-full flex-1 flex flex-col gap-4">
+                        <h4 className="font-bold text-sm mb-2 uppercase tracking-widest text-[#4e515a] self-start">Select a Variation</h4>
+                        <div className="flex flex-col gap-3 w-full">
+                            {project.audio.musicVariations.map((url, i) => (
+                                <div key={i} className="flex items-center gap-4 bg-[#1f2128] p-3 rounded-xl border border-[#2a2d35] w-full">
+                                    <button 
+                                        onClick={() => previewTrack(url)}
+                                        className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors flex-shrink-0"
+                                    >
+                                        <Play className="w-4 h-4 ml-0.5" />
+                                    </button>
+                                    <div className="flex-1 text-left">
+                                        <h5 className="font-bold text-sm">Variation {i + 1}</h5>
+                                        <p className="text-[10px] text-[#8e9299]">AI Generated Track</p>
+                                    </div>
+                                    <button
+                                        onClick={() => selectMusic(url)}
+                                        className="px-4 py-2 bg-[#2a2d35] hover:bg-blue-600 text-xs font-bold rounded-lg transition-colors"
+                                    >
+                                        Select
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : project.audio?.musicUrl ? (
                     <>
                         <div className="w-20 h-20 rounded-full border-4 border-blue-500/30 flex items-center justify-center mb-4 relative">
                             <button 
