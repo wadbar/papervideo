@@ -1,8 +1,7 @@
 /**
- * UniversalEngine.mjs
+ * UniversalSystem.mjs
  * 
- * MOTOR DE IA DE ALTA PERFORMANCE (ESM) - ARQUITETURA MILITAR
- * Missão: Inteligência Universal, Agnóstica e Blindada.
+ * SISTEMA DE IA DE ALTA PERFORMANCE (ESM)
  * 
  * Este arquivo é 100% modular, autocontido e isolado.
  * Pode ser movido entre projetos Node.js apenas com o .env correspondente.
@@ -58,7 +57,7 @@ const sanitizeAndParseJSON = (rawString) => {
     return JSON.parse(target);
   } catch (error) {
     log('error', 'Falha de Integridade JSON', { error: error.message, sample: rawString.substring(0, 50) });
-    throw new Error('CORRUPTO: Resposta não cumpre o protocolo JSON solicitado.');
+    throw new Error('CORRUPTO: Resposta não cumpre formato JSON solicitado.');
   }
 };
 
@@ -151,7 +150,7 @@ const PROVIDERS = [
  */
 export async function generate({ 
   prompt, 
-  systemInstruction = 'Você é um arquiteto de sistemas supremo.', 
+  systemInstruction = 'Você é um arquiteto de sistemas avançado.', 
   responseType = 'text', 
   temperature = 0.7 
 }) {

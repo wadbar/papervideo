@@ -198,15 +198,22 @@ export default function AssetWorkspace() {
     }
   };
 
-  const refinePrompt = async () => {
+                {/* Removed unused refinePrompt */}
+
+  const expandDescription = async () => {
     if (isRefining) return;
     setIsRefining(true);
     try {
       const provider = getAIProviderInstance();
-      const refined = await provider.refinePrompt(activeScene.description, activeScene.imageStyle || 'Cinematic');
-      updateActiveScene({ description: refined });
+      const expanded = await provider.expandVisualDescription(
+        activeScene.description,
+        activeScene.narrationText || '',
+        project.idea,
+        activeScene.imageStyle || 'Cinematic'
+      );
+      updateActiveScene({ description: expanded });
     } catch (e: any) {
-        alert(`Refinement failed: ${e.message}`);
+        alert(`Expansion failed: ${e.message}`);
     } finally {
         setIsRefining(false);
     }
@@ -299,9 +306,9 @@ export default function AssetWorkspace() {
                         </div>
                     )}
                 </div>
-                <button onClick={refinePrompt} disabled={isRefining} className="px-4 py-2 bg-[#1f2128] border border-[#2a2d35] rounded-lg text-purple-400 text-sm font-bold flex items-center gap-2">
+                <button onClick={expandDescription} disabled={isRefining} className="px-4 py-2 bg-[#1f2128] border border-[#2a2d35] rounded-lg text-purple-400 text-sm font-bold flex items-center gap-2">
                     {isRefining ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    AI Refine
+                    Refine Visuals
                 </button>
                 <button onClick={generateImage} disabled={!!isGenerating} className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-bold shadow-lg shadow-blue-900/20 active:scale-95 transition-all text-white">
                     {isGenerating === activeScene.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Gen Image'}
@@ -673,12 +680,30 @@ export default function AssetWorkspace() {
                                     ) : (
                                         <div className="w-full h-full bg-[#0d0d0f] flex items-center justify-center text-[10px] font-bold text-[#1f2128]">S{idx + 1}</div>
                                     )}
-                                    <div className="absolute bottom-2 left-2 bg-black/60 px-1.5 py-0.5 rounded text-[8px] font-bold text-white backdrop-blur-md">
+                                    <div className="absolute bottom-2 left-2 bg-black/60 px-1.5 py-0.5 rounded text-[8px] font-bold text-white backdrop-blur-md z-10 pointer-events-none">
                                         {idx + 1}
                                     </div>
                                     {s.videoUrl && (
-                                        <div className="absolute top-2 right-2">
+                                        <div className="absolute top-2 right-2 z-10 pointer-events-none">
                                             <Video className="w-3 h-3 text-blue-400" />
+                                        </div>
+                                    )}
+                                    {activeScene.id === s.id && idx > 0 && (
+                                        <div className="absolute bottom-2 right-2 z-20" onClick={(e) => e.stopPropagation()}>
+                                            <select 
+                                                value={s.transition || 'Cut'}
+                                                onChange={(e) => {
+                                                    const newScenes = project.scenes.map((scene, i) => 
+                                                        i === idx ? { ...scene, transition: e.target.value } : scene
+                                                    );
+                                                    onUpdate({ ...project, scenes: newScenes });
+                                                }}
+                                                className="bg-[#151619]/90 text-blue-400 text-[9px] font-bold uppercase py-0.5 px-1 rounded outline-none border border-[#2a2d35] hover:border-blue-500/50 backdrop-blur-md cursor-pointer"
+                                            >
+                                                {TRANSITIONS.map(t => (
+                                                    <option key={t.id} value={t.label}>{t.label}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     )}
                                     {/* Drag Handle Indicator */}

@@ -85,7 +85,7 @@ export default function App() {
   const activeProject = getActiveProject();
 
   return (
-    <div className={`flex h-screen w-full bg-[#0a0a0b] overflow-hidden tech-grid relative ${systemSettings?.performanceMode ? 'performance-mode' : ''}`}>
+    <div className={`flex h-screen w-full bg-[#0a0a0b] overflow-hidden tech-bg relative ${systemSettings?.performanceMode ? 'performance-mode' : ''}`}>
       <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-blue-500/5 to-transparent pointer-events-none" />
       <Sidebar 
         isSidebarOpen={isSidebarOpen}

@@ -121,7 +121,7 @@ export const useProjectStore = create<ProjectState>()(
       })
     }),
     {
-      name: 'omni-video-projects',
+      name: 'app-video-projects',
     }
   )
 );

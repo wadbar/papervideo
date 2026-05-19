@@ -73,7 +73,7 @@ export default function SystemMonitor() {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-16 left-4 z-50 w-[400px] h-[500px] glass-ultra rounded-2xl overflow-hidden flex flex-col tech-grid shadow-2xl border-blue-500/20"
+            className="fixed bottom-16 left-4 z-50 w-[400px] h-[500px] glass-ultra rounded-2xl overflow-hidden flex flex-col tech-bg shadow-2xl border-blue-500/20"
           >
             <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/5 backdrop-blur-md">
               <div className="flex items-center gap-3">

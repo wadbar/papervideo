@@ -167,6 +167,14 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
     }
   }, [channels, selectedChannelId]);
 
+  const exportIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (exportIntervalRef.current) clearInterval(exportIntervalRef.current);
+    };
+  }, []);
+
   const startExport = () => {
     if (!isReadyToExport) {
       alert("Please ensure script, visuals and audio are all ready before exporting.");
@@ -175,10 +183,11 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
     setIsExporting(true);
     setProgress(0);
     
-    const interval = setInterval(() => {
+    if (exportIntervalRef.current) clearInterval(exportIntervalRef.current);
+    exportIntervalRef.current = setInterval(() => {
       setProgress(prev => {
         if (prev >= 100) {
-          clearInterval(interval);
+          if (exportIntervalRef.current) clearInterval(exportIntervalRef.current);
           setIsExporting(false);
           onUpdate({ ...project, status: 'completed' });
           confetti({
@@ -338,7 +347,7 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
                      <span className="text-[10px] text-[#8e9299] font-mono">
                        {progress < 25 ? 'Initializing timeline...' : 
                         progress < 50 ? 'Merging sequences and transitions...' : 
-                        progress < 75 ? 'Synthesizing master audio track...' : 'Final encoding to VP9/H.264/AAC...'}
+                        progress < 75 ? 'Synthesizing main audio track...' : 'Final encoding to VP9/H.264/AAC...'}
                      </span>
                    </div>
                 </div>

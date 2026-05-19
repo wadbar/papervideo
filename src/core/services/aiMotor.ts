@@ -1,7 +1,7 @@
 /**
- * UNIVERSAL AI MOTOR - ARQUITETURA DE ALTA RESILIÊNCIA E PERFORMANCE (MILITARY-GRADE)
+ * UNIVERSAL AI MOTOR - ARQUITETURA DE ALTA DISPONIBILIDADE E PERFORMANCE (MILITARY-GRADE)
  * 
- * Este motor implementa uma esteira de execução resiliente com tripla redundância,
+ * Este motor implementa uma esteira de execução robusta com tripla redundância,
  * Circuit Breaker dinâmico, Agente Crítico de sanitização e Roteamento Cognitivo.
  * 
  * PADRÕES: Singleton, Fallback (Chain of Responsibility), Circuit Breaker, Strategy.
@@ -245,7 +245,7 @@ class AIMotorInternal {
 
         let finalContent = result.content;
 
-        // 4. Protocolo de Mitigação de Alucinação (Anti-Hallucination)
+        // 4. Mitigação de Alucinação (Anti-Hallucination)
         if (responseType === 'json' && typeof finalContent === 'string') {
           finalContent = this.safeJsonParse(finalContent);
         }
@@ -310,7 +310,7 @@ class AIMotorInternal {
   }
 
   private async executeEmergencyFallback(config: AIRequestConfig, start: number, attempts: string[]): Promise<AIResponse> {
-    this.log('ERROR', 'PIPELINE', 'CAPACIDADE EXAURIDA: Iniciando protocolo de emergência.');
+    this.log('ERROR', 'PIPELINE', 'CAPACIDADE EXAURIDA: Iniciando rotina de emergência.');
     
     // Se for texto, tentamos um retorno sintético estruturado para não quebrar o app
     if (config.responseType === 'json') {
@@ -511,7 +511,7 @@ class AIMotorInternal {
       try {
         return JSON.parse(clean);
       } catch (parseError) {
-        this.log('WARN', 'REPAIR', 'JSON corrompido detectado. Aplicando protocolos de reparo heurístico.');
+        this.log('WARN', 'REPAIR', 'JSON corrompido detectado. Aplicando rotinas de reparo heurístico.');
         
         // Reparo A: Vírgulas pendentes
         clean = clean.replace(/,(\s*[}\]])/g, '$1');
@@ -562,7 +562,33 @@ class AIMotorInternal {
 
     const response = await this.execute({ 
       prompt, 
-      systemInstruction: 'You are a master prompt engineer for Midjourney and Runway Gen-2. Respond with ONLY the refined prompt text.' 
+      systemInstruction: 'You are a lead prompt engineer for Midjourney and Runway Gen-2. Respond with ONLY the refined prompt text.' 
+    });
+    return response.content;
+  }
+
+  public async expandVisualDescription(prompt: string, narrationText: string, projectIdea: string, style: string = 'Cinematic') {
+    this.log('INFO', 'EXPAND', `Expandindo descrição visual com base no contexto. Estilo: ${style}`);
+    const fullPrompt = `Act as a world-class visual director and conceptual artist.
+    Your task is to expand and deeply enhance a scene's visual description based on its narration and the overall project theme. 
+    This description will be used as a high-end text-to-image prompt.
+
+    CRITICAL INSTRUCTIONS:
+    - Infuse the scene with details that match the tone of the narration.
+    - Elaborate on the environment, lighting, composition, and mood.
+    - Maintain consistency with the overall project theme.
+    - Incorporate technical art terms and camera specifications (e.g., volumetric lighting, Arri Alexa, 35mm, cinematic color grading).
+    - Style focus: ${style}.
+
+    Project Theme: ${projectIdea}
+    Current Narration: ${narrationText}
+    Base Visual Concept: ${prompt}
+
+    Output EXACTLY the enriched, highly-detailed visual prompt. No chatter, no explanations.`;
+
+    const response = await this.execute({ 
+      prompt: fullPrompt, 
+      systemInstruction: 'You are a lead visual director. Respond with ONLY the expanded prompt text.' 
     });
     return response.content;
   }

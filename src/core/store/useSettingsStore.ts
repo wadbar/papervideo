@@ -31,6 +31,7 @@ class LocalProviderMock implements AIProvider {
   async generateVideo(desc: string, img: string, duration?: number, motion?: number, signal?: AbortSignal) { return ""; }
   async cloneVoice(voiceName: string, audioSampleBase64: string, signal?: AbortSignal) { return `local-cloned-${Date.now()}`; }
   async refinePrompt(prompt: string, style?: string, signal?: AbortSignal) { return `${prompt} (Refined ${style})`; }
+  async expandVisualDescription(prompt: string, narrationText: string, projectIdea: string, style?: string, signal?: AbortSignal) { return `${prompt} (Expanded: ${narrationText} - ${projectIdea}) ${style || ''}`; }
   async refineScript(script: string, instructions?: string, signal?: AbortSignal) { return `${script} (Refined: ${instructions || 'Default improvement'})`; }
   async analyzeVisualConsistency(_project: any, signal?: AbortSignal) { return "Cohesive cinematic lighting and high-contrast color palette"; }
   async optimizeSEO(projectData: any, signal?: AbortSignal) { return { titles: ["Title 1", "Title 2", "Title 3"], description: "Optimized description", tags: ["tag1", "tag2"] }; }
@@ -95,7 +96,7 @@ export const useSettingsStore = create<SettingsState>()(
       }
     }),
     {
-      name: 'omni-settings',
+      name: 'app-settings',
       // skip functions when persisting
       partialize: (state) => ({
         providers: state.providers,

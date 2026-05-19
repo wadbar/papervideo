@@ -350,20 +350,26 @@ export default function Orchestrator({ project, onUpdate, onNext }: Orchestrator
 
                   <div 
                       draggable
-                      onDragStart={(e) => handleDragStart(e, scene.id)}
+                      onDragStart={(e) => {
+                        (e.currentTarget as HTMLElement).classList.add('is-dragging');
+                        handleDragStart(e, scene.id);
+                      }}
                       onDragOver={(e) => handleDragOver(e, scene.id)}
                       onDrop={(e) => {
                         e.preventDefault();
                         handleDrop(scene.id);
                       }}
-                      onDragEnd={handleDragEnd}
+                      onDragEnd={(e) => {
+                        (e.currentTarget as HTMLElement).classList.remove('is-dragging');
+                        handleDragEnd();
+                      }}
                       className={`p-4 bg-[#1f2128] border rounded-xl cursor-move transition-all duration-300 relative group overflow-hidden ${
                           draggedSceneId === scene.id 
-                            ? 'opacity-20 border-dashed border-blue-500/40 bg-blue-500/5 grayscale blur-[0.5px]' 
-                            : 'opacity-100 border-[#2a2d35] hover:border-blue-500/50'
+                            ? 'is-dragging' 
+                            : 'opacity-100 border-[#2a2d35] hover:border-[#383c47]'
                       } ${
                           dropTargetId === scene.id && draggedSceneId !== scene.id
-                            ? 'bg-blue-500/5 border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.1)]'
+                            ? `bg-blue-500/10 border-blue-500/50 shadow-[0_0_25px_rgba(59,130,246,0.15)] ${dropPosition === 'before' ? 'border-t-blue-400 border-t-2' : dropPosition === 'after' ? 'border-b-blue-400 border-b-2' : ''}`
                             : ''
                       }`}
                   >
@@ -445,7 +451,7 @@ export default function Orchestrator({ project, onUpdate, onNext }: Orchestrator
         <div className="p-6 border-b border-[#2a2d35] flex items-center justify-between bg-[#1f2128]">
           <div className="flex items-center gap-2 text-white">
             <FileText className="w-5 h-5" />
-            <h3 className="font-bold uppercase tracking-widest text-sm">Master Script</h3>
+            <h3 className="font-bold uppercase tracking-widest text-sm">Main Script</h3>
           </div>
           {project.script && (
             <button 

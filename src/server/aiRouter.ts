@@ -157,6 +157,16 @@ aiRouter.post('/seo', async (req, res) => {
   }
 });
 
+aiRouter.post('/expand', async (req, res) => {
+  try {
+    const { prompt, narrationText, projectIdea, style } = req.body;
+    const result = await (aiMotor as any).expandVisualDescription(prompt, narrationText, projectIdea, style);
+    res.json({ expandedPrompt: result });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao expandir prompt.', details: error.message });
+  }
+});
+
 aiRouter.post('/refine', async (req, res) => {
   try {
     const { prompt, style } = req.body;

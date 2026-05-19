@@ -23,6 +23,7 @@ export interface AIProvider {
   generateVideo(sceneDescription: string, baseImageUrl: string, duration?: number, motionIntensity?: number, signal?: AbortSignal): Promise<string>;
   cloneVoice(voiceName: string, audioSampleBase64: string, signal?: AbortSignal): Promise<string>;
   refinePrompt(prompt: string, style?: string, signal?: AbortSignal): Promise<string>;
+  expandVisualDescription(prompt: string, narrationText: string, projectIdea: string, style?: string, signal?: AbortSignal): Promise<string>;
   refineScript(script: string, instructions?: string, signal?: AbortSignal): Promise<string>;
   analyzeVisualConsistency(project: any, signal?: AbortSignal): Promise<string>;
   optimizeSEO(projectData: any, signal?: AbortSignal): Promise<{ titles: string[], description: string, tags: string[] }>;

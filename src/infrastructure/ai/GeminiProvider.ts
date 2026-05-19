@@ -32,7 +32,7 @@ export class GeminiProvider implements AIProvider {
   ): Promise<GenerateScriptResult> {
     return this.executeWithTelemetry('ScriptGeneration', async () => {
         const prompt = `
-          [KERNEL_DIRECTIVE] Act as an Industrial AI Content Architect.
+          Act as an Industrial AI Content Architect.
           Objective: High-retention YouTube Scripting.
           
           Technical Parameters:
@@ -64,18 +64,18 @@ export class GeminiProvider implements AIProvider {
 
   async generateImage(prompt: string): Promise<string> {
     return this.executeWithTelemetry('ImageSynthesis', async () => {
-      const masterPrompt = `[SUPREMO_VISUAL_PROTOCOL] UHD, photorealistic, cinematic volumetric lighting, raytracing, technical masterpiece, 8k, IMAX framing. SUBJECT: ${prompt} --negative blurry, noisy, lowres, text, watermark`;
+      const mainPrompt = `UHD, photorealistic, cinematic volumetric lighting, raytracing, technical high-end, 8k, IMAX framing. SUBJECT: ${prompt} --negative blurry, noisy, lowres, text, watermark`;
       
       const result = await this.genAI.models.generateContent({
         model: "gemini-2.5-flash-image",
-        contents: masterPrompt
+        contents: mainPrompt
       });
       
       const part = result.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
       if (part?.inlineData) {
         return `data:image/png;base64,${part.inlineData.data}`;
       }
-      throw new Error("No image data returned from synthesis engine");
+      throw new Error("No image data returned from synthesis system");
     });
   }
 
@@ -161,6 +161,32 @@ export class GeminiProvider implements AIProvider {
     return result.text || prompt;
   }
 
+  async expandVisualDescription(prompt: string, narrationText: string, projectIdea: string, style: string = "Cinematic"): Promise<string> {
+    const expandPrompt = `Act as a world-class visual director and conceptual artist.
+    Your task is to expand and deeply enhance a scene's visual description based on its narration and the overall project theme. 
+    This description will be used as a high-end text-to-image prompt.
+
+    CRITICAL INSTRUCTIONS:
+    - Infuse the scene with details that match the tone of the narration.
+    - Elaborate on the environment, lighting, composition, and mood.
+    - Maintain consistency with the overall project theme.
+    - Incorporate technical art terms and camera specifications (e.g., volumetric lighting, Arri Alexa, 35mm, cinematic color grading).
+    - Style focus: ${style}.
+
+    Project Theme: ${projectIdea}
+    Current Narration: ${narrationText}
+    Base Visual Concept: ${prompt}
+
+    Output EXACTLY the enriched, highly-detailed visual prompt. No chatter, no explanations.`;
+
+    const result = await this.genAI.models.generateContent({
+      model: "gemini-3.1-flash-preview",
+      contents: expandPrompt
+    });
+
+    return result.text || prompt;
+  }
+
   /**
    * INOVATION: Smart Scene Analysis (Visual Bible)
    * Analyze high-level project context to maintain strict visual consistency based on cinematic metrics.
@@ -169,7 +195,7 @@ export class GeminiProvider implements AIProvider {
     return this.executeWithTelemetry('VisualConsistencyAnalysis', async () => {
         const scenesContext = project.scenes.slice(0, 5).map((s: any) => s.description).join(' | ');
         const prompt = `
-          [KERNEL_DIRECTIVE] Act as a Lead Cinematographer and Visual Brand Architect.
+          Act as a Lead Cinematographer and Visual Brand Architect.
           Objective: Establish a UNIFIED VISUAL BIBLE for the project.
           
           Project Focus: "${project.idea}"
@@ -209,7 +235,7 @@ export class GeminiProvider implements AIProvider {
   async optimizeSEO(projectData: any): Promise<{ titles: string[], description: string, tags: string[] }> {
     return this.executeWithTelemetry('SEOOptimization', async () => {
         const prompt = `
-          [KERNEL_DIRECTIVE] Act as a Senior YouTube Growth Strategist and SEO Metadata Architect.
+          Act as a Senior YouTube Growth Strategist and SEO Metadata Architect.
           Objective: Maximize CTR and Search Visibility for the following project.
           
           Technical Parameters:

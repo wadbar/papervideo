@@ -106,14 +106,14 @@ export default function SceneSidebar() {
               className={`w-full text-left p-3 rounded-lg transition-all duration-300 border relative group overflow-hidden ${
                 selectedSceneId === scene.id 
                   ? 'bg-[#1f2128] border-blue-500/50 shadow-lg shadow-blue-500/10' 
-                  : 'border-transparent hover:bg-[#1a1b1e] hover:border-[#2a2d35]'
+                  : 'border-[#2a2d35]/30 hover:bg-[#1a1b1e] hover:border-[#383c47]'
               } ${
                 draggedSceneId === scene.id 
                   ? 'is-dragging' 
                   : 'opacity-100'
               } ${
                 dropTargetId === scene.id && draggedSceneId !== scene.id 
-                  ? 'bg-blue-500/5 border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.1)]' 
+                  ? `bg-blue-500/10 border-blue-500/50 shadow-[0_0_25px_rgba(59,130,246,0.15)] ${dropPosition === 'before' ? 'border-t-blue-400 border-t-2' : dropPosition === 'after' ? 'border-b-blue-400 border-b-2' : ''}` 
                   : ''
               }`}
             >

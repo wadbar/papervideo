@@ -198,7 +198,7 @@ export const youtubeChannelService = {
     const token = await ensureLogin(false);
     if (!token) throw new Error("Authentication failed: No access token available.");
     
-    console.log(`[YOUTUBE_SERVICE] Iniciando upload resiliente: ${metadata.title} (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
+    console.log(`[YOUTUBE_SERVICE] Iniciando upload robusto: ${metadata.title} (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
 
     try {
       // 1. INICIALIZAÇÃO DO UPLOAD RESUMABLE

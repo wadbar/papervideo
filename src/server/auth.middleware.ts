@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'omni-studio-super-secret-key-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET || 'app-studio-super-secret-key-in-prod';
 
 export interface AuthRequest extends Request {
   user?: any;
@@ -21,5 +21,5 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
 };
 
 export const generateLoginToken = () => {
-  return jwt.sign({ role: 'omni-engineer' }, JWT_SECRET, { expiresIn: '24h' });
+  return jwt.sign({ role: 'app-engineer' }, JWT_SECRET, { expiresIn: '24h' });
 };

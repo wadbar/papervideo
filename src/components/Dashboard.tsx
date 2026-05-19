@@ -55,7 +55,7 @@ export default function Dashboard() {
            <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
            <div className="flex items-center gap-4 animate-marquee whitespace-nowrap">
               <div className="flex items-center gap-2 text-[10px] font-mono text-blue-400/60 uppercase tracking-widest">
-                <span className="text-blue-400">KERNEL_OK:</span> 0.00ms latency detected in local stack
+                <span className="text-blue-400">SYSTEM_OK:</span> 0.00ms latency detected in local stack
               </div>
               <div className="text-white/20 px-4">•</div>
               <div className="flex items-center gap-2 text-[10px] font-mono text-blue-400/60 uppercase tracking-widest">
@@ -72,7 +72,7 @@ export default function Dashboard() {
               <div className="text-white/20 px-4">•</div>
               {/* Duplicate for seamless marquee */}
               <div className="flex items-center gap-2 text-[10px] font-mono text-blue-400/60 uppercase tracking-widest">
-                <span className="text-blue-400">KERNEL_OK:</span> 0.00ms latency detected in local stack
+                <span className="text-blue-400">SYSTEM_OK:</span> 0.00ms latency detected in local stack
               </div>
               <div className="text-white/20 px-4">•</div>
               <div className="flex items-center gap-2 text-[10px] font-mono text-blue-400/60 uppercase tracking-widest">

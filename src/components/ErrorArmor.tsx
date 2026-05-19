@@ -32,7 +32,7 @@ export default class ErrorArmor extends Component<Props, State> {
           <AlertCircle className="w-12 h-12 text-red-500 mb-4 animate-pulse" />
           <h2 className="text-sm font-bold uppercase tracking-widest text-red-500 mb-2">Isolation Protocol Active</h2>
           <p className="text-xs text-[#8e9299] text-center mb-6 max-w-xs">
-            A component failed. The system has isolated the fault to preserve kernel stability.
+            A component failed. The system has isolated the fault to preserve stability.
           </p>
           <button
             onClick={() => window.location.reload()}

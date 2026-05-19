@@ -5,7 +5,7 @@ export class BackendAIProvider implements AIProvider {
   private endpoint = '/api/ai';
 
   constructor() {
-    this.token = localStorage.getItem('omni_jwt_token');
+    this.token = localStorage.getItem('app_jwt_token');
   }
 
   private async fetchAuth(url: string, body?: any, signal?: AbortSignal) {
@@ -14,7 +14,7 @@ export class BackendAIProvider implements AIProvider {
       const res = await fetch('/api/auth/login', { method: 'POST', signal });
       const data = await res.json();
       this.token = data.token;
-      localStorage.setItem('omni_jwt_token', this.token as string);
+      localStorage.setItem('app_jwt_token', this.token as string);
     }
 
     const headers: Record<string, string> = {
@@ -87,6 +87,11 @@ export class BackendAIProvider implements AIProvider {
   async refinePrompt(prompt: string, style?: string, signal?: AbortSignal): Promise<string> {
     const res = await this.fetchAuth('/refine', { prompt, style }, signal);
     return res.refinedPrompt;
+  }
+
+  async expandVisualDescription(prompt: string, narrationText: string, projectIdea: string, style?: string, signal?: AbortSignal): Promise<string> {
+    const res = await this.fetchAuth('/expand', { prompt, narrationText, projectIdea, style }, signal);
+    return res.expandedPrompt;
   }
 
   async refineScript(script: string, instructions?: string, signal?: AbortSignal): Promise<string> {
