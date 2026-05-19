@@ -168,6 +168,16 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
   }, [channels, selectedChannelId]);
 
   const exportIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (thumbnailFile) {
+      const url = URL.createObjectURL(thumbnailFile);
+      setThumbnailPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setThumbnailPreviewUrl(null);
+  }, [thumbnailFile]);
 
   useEffect(() => {
     return () => {
@@ -176,6 +186,7 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
   }, []);
 
   const startExport = () => {
+    if (isExporting) return;
     if (!isReadyToExport) {
       alert("Please ensure script, visuals and audio are all ready before exporting.");
       return;
@@ -937,7 +948,7 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
                         {thumbnailFile ? (
                           <div className="relative w-full aspect-video rounded-lg overflow-hidden group">
                             <img 
-                              src={URL.createObjectURL(thumbnailFile)} 
+                              src={thumbnailPreviewUrl || ''} 
                               className="w-full h-full object-cover" 
                             />
                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">

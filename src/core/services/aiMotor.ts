@@ -185,6 +185,8 @@ class AIMotorInternal {
    * PIPELINE DE EXECUÇÃO ADAPTATIVA (THE CORTEX)
    * Implementa Chain of Responsibility com Circuit Breaker isolado.
    */
+  private inFlight = new Map<string, Promise<AIResponse>>();
+
   public async execute(config: AIRequestConfig): Promise<AIResponse> {
     const { responseType = 'text', maxTokens = 2048, mode = 'text', signal } = config;
     const cacheKey = this.generateHash(config);
@@ -200,6 +202,22 @@ class AIMotorInternal {
       }
     }
 
+    if (this.inFlight.has(cacheKey)) {
+      this.log('INFO', 'CONCURRENCY', 'Aguardando promessa em voo para evitar condição de corrida.');
+      return this.inFlight.get(cacheKey)!;
+    }
+
+    const executeProm = this._executeInternal(config, cacheKey);
+    this.inFlight.set(cacheKey, executeProm);
+    try {
+      return await executeProm;
+    } finally {
+      this.inFlight.delete(cacheKey);
+    }
+  }
+
+  private async _executeInternal(config: AIRequestConfig, cacheKey: string): Promise<AIResponse> {
+    const { responseType = 'text', maxTokens = 2048, mode = 'text', signal } = config;
     const start = Date.now();
     const attempts: string[] = [];
 

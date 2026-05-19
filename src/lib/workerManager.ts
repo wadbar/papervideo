@@ -19,7 +19,8 @@ export class WorkerManager {
   public runTask(id: string, taskCode: string, payload: any): Promise<any> {
     return new Promise((resolve, reject) => {
       const blob = new Blob([taskCode], { type: 'application/javascript' });
-      const worker = new Worker(URL.createObjectURL(blob));
+      const objectUrl = URL.createObjectURL(blob);
+      const worker = new Worker(objectUrl);
       
       this.workers.set(id, worker);
 
@@ -27,12 +28,14 @@ export class WorkerManager {
         resolve(e.data);
         worker.terminate();
         this.workers.delete(id);
+        URL.revokeObjectURL(objectUrl);
       };
 
       worker.onerror = (err) => {
         reject(err);
         worker.terminate();
         this.workers.delete(id);
+        URL.revokeObjectURL(objectUrl);
       };
 
       worker.postMessage(payload);
