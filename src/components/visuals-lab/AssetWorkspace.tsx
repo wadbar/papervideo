@@ -44,6 +44,7 @@ export default function AssetWorkspace() {
   const [isMotionDropdownOpen, setIsMotionDropdownOpen] = useState(false);
   const [isTransitionDropdownOpen, setIsTransitionDropdownOpen] = useState(false);
   const [activeTimelineTransitionIdx, setActiveTimelineTransitionIdx] = useState<number | null>(null);
+  const [activeSceneThumbTransitionIdx, setActiveSceneThumbTransitionIdx] = useState<number | null>(null);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
   const [dropIndicatorPos, setDropIndicatorPos] = useState<'before' | 'after' | null>(null);
@@ -59,6 +60,7 @@ export default function AssetWorkspace() {
       if (motionDropdownRef.current && !motionDropdownRef.current.contains(event.target as Node)) setIsMotionDropdownOpen(false);
       if (transitionDropdownRef.current && !transitionDropdownRef.current.contains(event.target as Node)) setIsTransitionDropdownOpen(false);
       if (timelineTransitionRef.current && !timelineTransitionRef.current.contains(event.target as Node)) setActiveTimelineTransitionIdx(null);
+      setActiveSceneThumbTransitionIdx(null);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -306,10 +308,6 @@ export default function AssetWorkspace() {
                         </div>
                     )}
                 </div>
-                <button onClick={expandDescription} disabled={isRefining} className="px-4 py-2 bg-[#1f2128] border border-[#2a2d35] rounded-lg text-purple-400 text-sm font-bold flex items-center gap-2">
-                    {isRefining ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    Refine Visuals
-                </button>
                 <button onClick={generateImage} disabled={!!isGenerating} className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-bold shadow-lg shadow-blue-900/20 active:scale-95 transition-all text-white">
                     {isGenerating === activeScene.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Gen Image'}
                 </button>
@@ -382,7 +380,14 @@ export default function AssetWorkspace() {
                     <div className="p-4 bg-[#151619] border border-[#2a2d35] rounded-xl relative group">
                         <label className="text-[10px] font-bold text-[#4e515a] uppercase mb-2 block tracking-widest flex items-center justify-between">
                             <span>Visual Concept</span>
-                            <span className="text-[8px] opacity-0 group-hover:opacity-100 transition-opacity">AI-POWERED_REFINEMENT_ACTIVE</span>
+                            <button 
+                                onClick={expandDescription}
+                                disabled={isRefining}
+                                className="text-[9px] text-purple-400 font-bold uppercase hover:text-purple-300 transition-colors flex items-center gap-1 disabled:opacity-50"
+                            >
+                                {isRefining ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}
+                                AI Refine
+                            </button>
                         </label>
                         <textarea 
                             value={activeScene.description}
@@ -664,51 +669,88 @@ export default function AssetWorkspace() {
                                     </div>
                                 )}
                                 
-                                <button
-                                    draggable
-                                    onDragStart={() => handleDragStart(idx)}
-                                    onDragOver={(e) => handleDragOver(e, idx)}
-                                    onDrop={(e) => handleDrop(e, idx)}
-                                    onDragEnd={handleDragEnd}
-                                    onClick={() => setSelectedSceneId(s.id)}
-                                    className={`flex-shrink-0 w-36 aspect-video rounded-lg border-2 transition-all relative overflow-hidden group cursor-grab active:cursor-grabbing ${
-                                        activeScene.id === s.id ? 'border-blue-500 scale-105 shadow-xl shadow-blue-900/20' : 'border-[#1f2128] opacity-50 hover:opacity-100'
-                                    } ${isDragging ? 'opacity-20 scale-95 grayscale' : ''}`}
-                                >
-                                    {s.imageUrl ? (
-                                        <img src={s.imageUrl} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full bg-[#0d0d0f] flex items-center justify-center text-[10px] font-bold text-[#1f2128]">S{idx + 1}</div>
-                                    )}
-                                    <div className="absolute bottom-2 left-2 bg-black/60 px-1.5 py-0.5 rounded text-[8px] font-bold text-white backdrop-blur-md z-10 pointer-events-none">
-                                        {idx + 1}
-                                    </div>
-                                    {s.videoUrl && (
-                                        <div className="absolute top-2 right-2 z-10 pointer-events-none">
-                                            <Video className="w-3 h-3 text-blue-400" />
+                                <div className="relative group">
+                                    <button
+                                        draggable
+                                        onDragStart={() => handleDragStart(idx)}
+                                        onDragOver={(e) => handleDragOver(e, idx)}
+                                        onDrop={(e) => handleDrop(e, idx)}
+                                        onDragEnd={handleDragEnd}
+                                        onClick={() => setSelectedSceneId(s.id)}
+                                        className={`flex-shrink-0 w-36 aspect-video rounded-lg border-2 transition-all relative overflow-hidden cursor-grab active:cursor-grabbing ${
+                                            activeScene.id === s.id ? 'border-blue-500 scale-105 shadow-xl shadow-blue-900/20' : 'border-[#1f2128] opacity-50 hover:opacity-100'
+                                        } ${isDragging ? 'opacity-20 scale-95 grayscale' : ''}`}
+                                    >
+                                        {s.imageUrl ? (
+                                            <img src={s.imageUrl} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full bg-[#0d0d0f] flex items-center justify-center text-[10px] font-bold text-[#1f2128]">S{idx + 1}</div>
+                                        )}
+                                        <div className="absolute bottom-2 left-2 bg-black/60 px-1.5 py-0.5 rounded text-[8px] font-bold text-white backdrop-blur-md z-10 pointer-events-none">
+                                            {idx + 1}
                                         </div>
-                                    )}
+                                        {s.videoUrl && (
+                                            <div className="absolute top-2 right-2 z-10 pointer-events-none">
+                                                <Video className="w-3 h-3 text-blue-400" />
+                                            </div>
+                                        )}
+                                        
+                                        {/* Drag Handle Indicator */}
+                                        <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/5 transition-colors pointer-events-none" />
+                                    </button>
+
                                     {activeScene.id === s.id && idx > 0 && (
-                                        <div className="absolute bottom-2 right-2 z-20" onClick={(e) => e.stopPropagation()}>
-                                            <select 
-                                                value={s.transition || 'Cut'}
-                                                onChange={(e) => {
-                                                    const newScenes = project.scenes.map((scene, i) => 
-                                                        i === idx ? { ...scene, transition: e.target.value } : scene
-                                                    );
-                                                    onUpdate({ ...project, scenes: newScenes });
+                                        <div className="absolute -bottom-2 right-0 z-30">
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setActiveSceneThumbTransitionIdx(activeSceneThumbTransitionIdx === idx ? null : idx);
                                                 }}
-                                                className="bg-[#151619]/90 text-blue-400 text-[9px] font-bold uppercase py-0.5 px-1 rounded outline-none border border-[#2a2d35] hover:border-blue-500/50 backdrop-blur-md cursor-pointer"
+                                                className="bg-[#151619]/90 text-blue-400 text-[9px] font-bold uppercase py-1 px-2 rounded-lg border border-[#2a2d35] hover:border-blue-500/50 backdrop-blur-md cursor-pointer flex items-center gap-1 shadow-lg"
                                             >
-                                                {TRANSITIONS.map(t => (
-                                                    <option key={t.id} value={t.label}>{t.label}</option>
-                                                ))}
-                                            </select>
+                                                <span>{s.transition || 'Cut'}</span>
+                                                <ArrowRightLeft className="w-2.5 h-2.5" />
+                                            </button>
+
+                                            <AnimatePresence>
+                                                {activeSceneThumbTransitionIdx === idx && (
+                                                    <motion.div 
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                        className="absolute bottom-full right-0 mb-2 w-32 bg-[#1f2128] border border-blue-500/30 rounded-xl shadow-2xl z-[100] overflow-hidden"
+                                                    >
+                                                        <div className="p-2 border-b border-[#2a2d35] bg-[#151619]">
+                                                            <span className="text-[8px] font-bold text-[#4e515a] uppercase tracking-widest pl-1">Transition</span>
+                                                        </div>
+                                                        <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                                            {TRANSITIONS.map(t => (
+                                                                <button
+                                                                    key={t.id}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        const newScenes = project.scenes.map((scene, i) => 
+                                                                            i === idx ? { ...scene, transition: t.label } : scene
+                                                                        );
+                                                                        onUpdate({ ...project, scenes: newScenes });
+                                                                        setActiveSceneThumbTransitionIdx(null);
+                                                                    }}
+                                                                    className={`w-full text-left px-3 py-2 hover:bg-blue-600/10 flex items-center justify-between group/transitem transition-colors ${s.transition === t.label ? 'bg-blue-600/5' : ''}`}
+                                                                >
+                                                                    <div className="flex flex-col">
+                                                                        <span className={`text-[10px] font-bold ${s.transition === t.label ? 'text-blue-400' : 'text-gray-300 group-hover/transitem:text-white'}`}>{t.label}</span>
+                                                                    </div>
+                                                                    {s.transition === t.label && <div className="w-1 h-1 rounded-full bg-blue-400" />}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
                                         </div>
                                     )}
-                                    {/* Drag Handle Indicator */}
-                                    <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/5 transition-colors pointer-events-none" />
-                                </button>
+                                </div>
 
                                 {/* Drop Indicator AFTER */}
                                 {isDropTarget && dropIndicatorPos === 'after' && draggedIdx !== idx && draggedIdx !== idx + 1 && (
