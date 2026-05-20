@@ -42,6 +42,7 @@ export interface Scene {
   imageStyle?: string;
   transition?: string; // e.g. fade, cut, slide, crosszoom
   postProcessing?: PostProcessingEffects;
+  metadataSuggestions?: string;
 }
 
 export type ProviderType = 'gemini' | 'ollama' | 'lmstudio' | 'nvidia';

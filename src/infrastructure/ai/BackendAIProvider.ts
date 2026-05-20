@@ -104,6 +104,18 @@ export class BackendAIProvider implements AIProvider {
     return res.directive;
   }
 
+  async generateVisualVariations(prompt: string, narration: string, projectIdea: string, signal?: AbortSignal): Promise<string[]> {
+    return this.fetchAuth('/generate-visual-variations', { prompt, narration, projectIdea }, signal);
+  }
+
+  async suggestTransition(currentSceneDesc: string, nextSceneDesc: string, signal?: AbortSignal): Promise<string> {
+    return this.fetchAuth('/suggest-transition', { currentSceneDesc, nextSceneDesc }, signal);
+  }
+
+  async analyzeSceneMetadata(description: string, narration: string, signal?: AbortSignal): Promise<{ suggestions: string }> {
+    return this.fetchAuth('/analyze-scene-metadata', { description, narration }, signal);
+  }
+
   async optimizeSEO(projectData: any, signal?: AbortSignal): Promise<{ titles: string[], description: string, tags: string[] }> {
     return this.fetchAuth('/seo', projectData, signal);
   }

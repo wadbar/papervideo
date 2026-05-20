@@ -7,6 +7,7 @@ export interface PostProcessingEffects {
   grain?: number;
   chromaticAberration?: number;
   temperature?: number;
+  blurFx?: number;
 }
 
 export const COLOR_GRADES = [
@@ -58,6 +59,10 @@ export function getFilterString(effects?: PostProcessingEffects): string {
   if (effects.chromaticAberration && effects.chromaticAberration > 0) {
     const shift = effects.chromaticAberration * 2;
     filters += `drop-shadow(${shift}px 0px 0px rgba(255,0,0,0.3)) drop-shadow(-${shift}px 0px 0px rgba(0,255,255,0.3)) `;
+  }
+
+  if (effects.blurFx && effects.blurFx > 0) {
+    filters += `blur(${effects.blurFx}px) `;
   }
 
   const grade = COLOR_GRADES.find(g => g.name === effects.colorGrade);

@@ -242,6 +242,16 @@ class AIMotorInternal {
          { id: 'anthropic', run: () => this.callAnthropic(config.prompt, config.systemInstruction || '', config.temperature || 0.7, maxTokens) },
          { id: 'openrouter', run: () => this.callOpenRouter(config.prompt, config.systemInstruction || '', config.temperature || 0.7, maxTokens) }
        ];
+
+       // INTEGRAÇÃO AI STUDIO NATIVA: Prioriza Gemini como motor primário no ambiente
+       const isAIStudioEnv = !!process.env.GEMINI_API_KEY && process.env.OLLAMA_HOST === undefined;
+       if (isAIStudioEnv || process.env.PRIORITIZE_GEMINI === 'true') {
+           const geminiIdx = providers.findIndex(p => p.id === 'gemini');
+           if (geminiIdx > -1) {
+               const [gemini] = providers.splice(geminiIdx, 1);
+               providers.unshift(gemini);
+           }
+       }
     }
 
     // 3. Orquestração de Redundância (Fallback Chain)
@@ -296,37 +306,12 @@ class AIMotorInternal {
     }
 
     // 5. Última Linha de Defesa (Last Resort Fallback)
-    if (mode === 'image') return this.staticImageFallback(config.prompt, start, attempts);
-    if (mode === 'video') return this.staticVideoFallback(start, attempts);
-    
     return this.executeEmergencyFallback(config, start, attempts);
   }
 
   /**
    * FALLBACKS ESTÁTICOS DE EMERGÊNCIA
    */
-  private staticImageFallback(prompt: string, start: number, attempts: string[]): AIResponse {
-    return {
-      success: true,
-      provider: 'fallback' as any,
-      model: 'static-visual-fallback',
-      content: `https://picsum.photos/seed/${encodeURIComponent(prompt.slice(0,10))}/1024/768`,
-      timestamp: new Date().toISOString(),
-      metrics: { latencyMs: Date.now() - start, attempts, circuitState: 'FALLBACK' }
-    };
-  }
-
-  private staticVideoFallback(start: number, attempts: string[]): AIResponse {
-    return {
-      success: true,
-      provider: 'fallback' as any,
-      model: 'static-motion-fallback',
-      content: `https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4`,
-      timestamp: new Date().toISOString(),
-      metrics: { latencyMs: Date.now() - start, attempts, circuitState: 'FALLBACK' }
-    };
-  }
-
   private async executeEmergencyFallback(config: AIRequestConfig, start: number, attempts: string[]): Promise<AIResponse> {
     this.log('ERROR', 'PIPELINE', 'CAPACIDADE EXAURIDA: Iniciando rotina de emergência.');
     
@@ -350,29 +335,156 @@ class AIMotorInternal {
    */
 
   private async callGeminiImage(prompt: string) {
-    // Implementação pendente de credenciais específicas para Imagen 3 via Vertex ou AI Studio
-    throw new Error("IMAGEN_3_UNCONFIGURED");
+    const key = process.env.HUGGING_FACE_TOKEN || process.env.REPLICATE_API_TOKEN;
+    if (!key) throw new Error("HUGGING_FACE_TOKEN (or Replicate) required for visual generation.");
+    
+    // Proxying to standard HuggingFace Inference API for stable-diffusion since Gemini native visual API might be restricted in this workspace
+    const resp = await fetch("https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0", {
+        headers: {
+            "Authorization": `Bearer ${key}`,
+            "Content-Type": "application/json"
+        },
+        method: "POST",
+        body: JSON.stringify({ inputs: prompt })
+    });
+
+    if (!resp.ok) {
+        throw new Error(`Visual API Error: ${resp.status}`);
+    }
+
+    const arrayBuffer = await resp.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    return { model: 'stable-diffusion-xl', content: `data:image/jpeg;base64,${buffer.toString('base64')}` };
   }
 
   private async callNvidiaImage(prompt: string) {
-    throw new Error("NVIDIA_NIM_VISUALS_UNCONFIGURED");
+    const key = process.env.NVIDIA_API_KEY;
+    if (!key) throw new Error("NVIDIA_API_KEY_MISSING");
+
+    const resp = await fetch("https://ai.api.nvidia.com/v1/genai/stabilityai/stable-diffusion-xl", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${key}`,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify({
+            text_prompts: [{ text: prompt }],
+            cfg_scale: 5,
+            steps: 40,
+            seed: 0,
+            output_format: "jpeg"
+        })
+    });
+
+    if (!resp.ok) throw new Error(`NVIDIA Vision Error: ${resp.status}`);
+    const data = await resp.json();
+    return { model: 'sdxl-nvidia', content: `data:image/jpeg;base64,${data.artifacts[0].base64}` };
+  }
+
+  private async fetchWithBackoff(url: string, options: RequestInit, maxRetries = 2): Promise<Response> {
+    let attempt = 0;
+    let lastError: Error | null = null;
+    while (attempt < maxRetries) {
+      try {
+        const response = await fetch(url, options);
+        if (response.status === 429 || response.status >= 500) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response;
+      } catch (e: any) {
+        attempt++;
+        lastError = e;
+        this.log("WARN", "NETWORK", `Fetch failed in Motor for ${new URL(url).hostname}, attempt ${attempt}/${maxRetries}. Retrying...`, { error: e.message });
+        if (attempt >= maxRetries) break;
+        const backoffTime = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, backoffTime));
+      }
+    }
+    throw new Error(`Motor Fetch failed after ${maxRetries} attempts. Last error: ${lastError?.message}`);
   }
 
   private async callGeminiVideo(prompt: string, img?: string, duration = 4, motion = 5) {
-    this.log('INFO', 'VIDEO_GEN', `Simulando geração de vídeo para prompt.`);
-    // Mock para manter fluxo funcional até bridge final
-    return { model: 'veo-alpha-1', content: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4" };
+     const token = process.env.REPLICATE_API_TOKEN;
+     if (!token) throw new Error("REPLICATE_API_TOKEN_MISSING");
+
+     if (!img) throw new Error("Image requirement unfulfilled for video-to-video workflow.");
+
+     const response = await this.fetchWithBackoff("https://api.replicate.com/v1/predictions", {
+        method: "POST",
+        headers: {
+            "Authorization": `Token ${token}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            version: "3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438", // svd
+            input: {
+                cond_aug: 0.02,
+                decoding_t: 7,
+                input_image: img,
+                video_length: "14_frames_with_svd",
+                sizing_strategy: "maintain_aspect_ratio",
+                motion_bucket_id: 127,
+                frames_per_second: 6
+            }
+        })
+    });
+
+    if (!response.ok) throw new Error(`Replicate API Error: ${response.status}`);
+    let prediction = await response.json();
+    
+    let attempts = 0;
+    while (prediction.status !== "succeeded" && prediction.status !== "failed" && attempts < 30) {
+        await new Promise(r => setTimeout(r, 2000));
+        const pollResponse = await this.fetchWithBackoff(prediction.urls.get, {
+            headers: { "Authorization": `Token ${token}` }
+        }, 1);
+        prediction = await pollResponse.json();
+        attempts++;
+    }
+
+    if (prediction.status !== "succeeded") throw new Error("Video synthesis failed or timed out.");
+    return { model: 'stable-video-diffusion', content: prediction.output };
   }
 
   private async callNvidiaVideo(prompt: string, img?: string) {
-    throw new Error("NVIDIA_COSMOS_UNCONFIGURED");
+    const key = process.env.NVIDIA_API_KEY;
+    if (!key) throw new Error('NVIDIA_KEY_MISSING');
+
+    const baseUrl = process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1';
+    
+    // Simulate real flow with realistic integration fallback
+    const resp = await this.fetchWithBackoff(`${baseUrl}/video/generation`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'nvidia/cosmos-v1',
+        prompt: prompt,
+        image_input: img,
+        duration: 4
+      }),
+      signal: AbortSignal.timeout(60000)
+    });
+
+    if (!resp.ok) {
+      if (resp.status === 404 || resp.status === 403) {
+         this.log("WARN", "PROVIDER", "NVIDIA Cosmos unavailable/unconfigured. Falling back via caller.");
+         throw new Error("NVIDIA_COSMOS_UNCONFIGURED - Use Replicate as Fallback");
+      }
+      throw new Error(`NVIDIA Video Error: ${resp.status}`);
+    }
+    const data = await resp.json();
+    return { model: 'nvidia-cosmos', content: data.video_url || data.output };
   }
 
   private async callOllama(prompt: string, system: string, temp: number) {
     const host = process.env.OLLAMA_HOST || 'http://localhost:11434';
     const model = process.env.OLLAMA_MODEL || 'qwen2.5-coder:7b';
 
-    const resp = await fetch(`${host}/api/generate`, {
+    const resp = await this.fetchWithBackoff(`${host}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -393,8 +505,8 @@ class AIMotorInternal {
     const key = process.env.GEMINI_API_KEY;
     if (!key) throw new Error('GEMINI_KEY_MISSING');
 
-    const model = process.env.GEMINI_MODEL || 'gemini-1.5-pro';
-    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+    const model = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
+    const resp = await this.fetchWithBackoff(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -422,7 +534,7 @@ class AIMotorInternal {
     const baseUrl = process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1';
     const model = process.env.NVIDIA_MODEL || 'meta/llama-3.1-70b-instruct';
     
-    const resp = await fetch(`${baseUrl}/chat/completions`, {
+    const resp = await this.fetchWithBackoff(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 
         'Authorization': `Bearer ${key}`, 
@@ -451,7 +563,7 @@ class AIMotorInternal {
     if (!key) throw new Error('ANTHROPIC_KEY_MISSING');
 
     const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20240620';
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await this.fetchWithBackoff('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'x-api-key': key,
@@ -478,7 +590,7 @@ class AIMotorInternal {
     if (!key) throw new Error('OPENROUTER_KEY_MISSING');
 
     const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
-    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const resp = await this.fetchWithBackoff('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${key}`,
@@ -549,6 +661,61 @@ class AIMotorInternal {
   /**
    * RECURSOS ADICIONAIS (PRESERVAÇÃO EVOLUTIVA)
    */
+
+  public async generateVisualVariations(prompt: string, narration: string, projectIdea: string) {
+    this.log('INFO', 'VISION', 'Generating visual variations.');
+    const sysPrompt = `Act as an expert cinematic visual developer. Based on the provided project theme, current visual concept, and narration context, generate 3 highly detailed, distinct visual direction variations for this scene. Suggest different lighting setups, camera angles, and stylistic moods (e.g., Cyberpunk, Photorealistic, Noir).
+
+    Project Theme: ${projectIdea}
+    Current Narration: ${narration}
+    Current Concept: ${prompt}
+
+    Return strictly a JSON array of strings, where each string is a fully fleshed-out visual prompt variance. Example: ["Variation 1...", "Variation 2...", "Variation 3..."]`;
+    
+    const response = await this.execute({
+      prompt: sysPrompt,
+      responseType: 'json',
+      systemInstruction: 'You are an expert art director. Respond only with a JSON array of 3 strings.'
+    });
+    return response.content;
+  }
+
+  public async suggestTransition(currentSceneDesc: string, nextSceneDesc: string) {
+    this.log('INFO', 'FLOW', 'Suggesting ideal transition.');
+    const sysPrompt = `Act as an expert film editor. Suggest the most visually appropriate, cinematic video transition from the current scene to the next scene. Consider momentum, color profiles, and visual flow. 
+    
+    Current Scene: ${currentSceneDesc}
+    Next Scene: ${nextSceneDesc}
+    
+    Available Transitions: Cut, Fade Through Black, Cross Dissolve, Dip to Color, Slide, Wipe, Push, Zoom Blur, Glitch, Light Leak, Morph.
+    
+    Select the single most appropriate transition name from the available options. Do NOT provide a sentence, just the transition name.`;
+
+    const response = await this.execute({
+        prompt: sysPrompt,
+        systemInstruction: 'You are an expert film editor. Return exactly one transition name from the list.',
+        responseType: 'text'
+    });
+    return response.content.trim();
+  }
+
+  public async analyzeSceneMetadata(description: string, narration: string) {
+    this.log('INFO', 'METADATA', 'Analisando metadados da cena individual.');
+    const prompt = `Analyze the following scene.
+    Description: ${description}
+    Narration: ${narration}
+    
+    Suggest metadata improvements for better discoverability, engagement, and accessibility (like alt text, visual keywords, mood/tone tags).
+    
+    Return strictly a JSON object with: { "suggestions": string }`;
+
+    const response = await this.execute({ 
+      prompt, 
+      responseType: 'json', 
+      systemInstruction: 'You are an expert content strategist. Respond only with JSON.' 
+    });
+    return response.content;
+  }
 
   public async optimizeSEO(projectData: any) {
     this.log('INFO', 'SEO', 'Gerando metadados otimizados para YouTube.');

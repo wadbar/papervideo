@@ -26,6 +26,9 @@ export interface AIProvider {
   expandVisualDescription(prompt: string, narrationText: string, projectIdea: string, style?: string, signal?: AbortSignal): Promise<string>;
   refineScript(script: string, instructions?: string, signal?: AbortSignal): Promise<string>;
   analyzeVisualConsistency(project: any, signal?: AbortSignal): Promise<string>;
+  analyzeSceneMetadata(description: string, narration: string, signal?: AbortSignal): Promise<{ suggestions: string }>;
+  generateVisualVariations(prompt: string, narration: string, projectIdea: string, signal?: AbortSignal): Promise<string[]>;
+  suggestTransition(currentSceneDesc: string, nextSceneDesc: string, signal?: AbortSignal): Promise<string>;
   optimizeSEO(projectData: any, signal?: AbortSignal): Promise<{ titles: string[], description: string, tags: string[] }>;
   isHealthy(): Promise<boolean>;
 }

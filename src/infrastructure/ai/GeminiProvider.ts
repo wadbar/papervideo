@@ -80,15 +80,21 @@ export class GeminiProvider implements AIProvider {
   }
 
   async generateThumbnailVariations(prompt: string): Promise<string[]> {
-      // In a real scenario, we would call a model that returns multiple images or call it 3 times
-      // For this optimization, we'll simulate slightly different prompts for more variation
       const variations = [
           `Cinematic close-up, high impact, ${prompt}`,
           `Dramatic wide shot, vibrant colors, ${prompt}`,
           `Minimalist professional layout, clean design, ${prompt}`
       ];
       
-      return variations.map((p, i) => `https://picsum.photos/seed/${encodeURIComponent(p.slice(0, 15))}_${i}/1024/768`);
+      const results = await Promise.allSettled(variations.map(p => this.generateImage(p)));
+      const urls = results
+          .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+          .map(r => r.value);
+            
+      if (urls.length === 0) {
+          throw new Error("Failed to generate any thumbnail variations.");
+      }
+      return urls;
   }
 
   async generateNarration(text: string, voice: string = "Zephyr", volume?: number, speed?: 'slow' | 'normal' | 'fast'): Promise<string> {
@@ -115,28 +121,141 @@ export class GeminiProvider implements AIProvider {
   }
 
   async generateMusic(prompt: string): Promise<string> {
-    await new Promise(r => setTimeout(r, 2000));
-    return "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+    return this.executeWithTelemetry('MusicGeneration', async () => {
+      const HUGGING_FACE_TOKEN = process.env.VITE_HUGGING_FACE_TOKEN || process.env.HUGGING_FACE_TOKEN;
+      if (!HUGGING_FACE_TOKEN) {
+        throw new Error("Missing HUGGING_FACE_TOKEN for music generation integration.");
+      }
+
+      const response = await fetch("https://api-inference.huggingface.co/models/facebook/musicgen-small", {
+        headers: {
+          "Authorization": `Bearer ${HUGGING_FACE_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+        body: JSON.stringify({ inputs: prompt }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HuggingFace API failed: ${response.status} - ${errorText}`);
+      }
+
+      const audioBlob = await response.blob();
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
+      });
+    });
   }
 
   async generateMusicVariations(prompt: string): Promise<string[]> {
-    await new Promise(r => setTimeout(r, 2000));
-    return [
-      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
-    ];
+    return this.executeWithTelemetry('MusicVariationsGeneration', async () => {
+        // Generating sequential variations by slightly altering the prompt
+        const variations = [
+            `${prompt}, fast upbeat rhythm`,
+            `${prompt}, cinematic dramatic tone`,
+            `${prompt}, lofi chill vibes`
+        ];
+
+        const results = await Promise.allSettled(variations.map(v => this.generateMusic(v)));
+        const successfulUrls = results
+            .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+            .map(r => r.value);
+
+        if (successfulUrls.length === 0) {
+            throw new Error("All variations failed to generate. Check your API token or rate limits.");
+        }
+
+        return successfulUrls;
+    });
   }
 
   async generateVideo(sceneDescription: string, baseImageUrl: string): Promise<string> {
-    await new Promise(r => setTimeout(r, 3000));
-    return "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4";
+    return this.executeWithTelemetry('VideoSynthesis', async () => {
+        const REPLICATE_API_TOKEN = process.env.VITE_REPLICATE_API_TOKEN || process.env.REPLICATE_API_TOKEN;
+        if (!REPLICATE_API_TOKEN) {
+             throw new Error("Missing REPLICATE_API_TOKEN for video synthesis integration.");
+        }
+
+        // Using Stability AI's Stable Video Diffusion API via Replicate
+        const response = await fetch("https://api.replicate.com/v1/predictions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Token ${REPLICATE_API_TOKEN}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                version: "3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438", // stable-video-diffusion
+                input: {
+                    cond_aug: 0.02,
+                    decoding_t: 7,
+                    input_image: baseImageUrl,
+                    video_length: "14_frames_with_svd",
+                    sizing_strategy: "maintain_aspect_ratio",
+                    motion_bucket_id: 127,
+                    frames_per_second: 6
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`Replicate API Error: ${response.status} ${JSON.stringify(errorData)}`);
+        }
+
+        let prediction = await response.json();
+        
+        // Polling loop for async video generation
+        while (prediction.status !== "succeeded" && prediction.status !== "failed") {
+            await new Promise(r => setTimeout(r, 2000));
+            const pollResponse = await fetch(prediction.urls.get, {
+                headers: { "Authorization": `Token ${REPLICATE_API_TOKEN}` }
+            });
+            prediction = await pollResponse.json();
+            if (prediction.status === "failed") {
+                throw new Error("Video generation processing failed on Replicate.");
+            }
+        }
+
+        return prediction.output; 
+    });
   }
 
   async cloneVoice(voiceName: string, audioSampleBase64: string): Promise<string> {
-    // Simulate API call for voice cloning
-    await new Promise(r => setTimeout(r, 2000));
-    return `custom-voice-${voiceName.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
+    return this.executeWithTelemetry('VoiceCloning', async () => {
+        const ELEVENLABS_API_KEY = process.env.VITE_ELEVENLABS_API_KEY || process.env.ELEVENLABS_API_KEY;
+        if (!ELEVENLABS_API_KEY) {
+             throw new Error("Missing ELEVENLABS_API_KEY for voice cloning integration.");
+        }
+
+        // Convert base64 back to Blob
+        const fetchResponse = await fetch(audioSampleBase64);
+        const blob = await fetchResponse.blob();
+
+        const formData = new FormData();
+        formData.append("name", voiceName);
+        formData.append("files", blob, "sample.wav");
+        formData.append("description", "Cloned via application interface");
+
+        const response = await fetch("https://api.elevenlabs.io/v1/voices/add", {
+            method: "POST",
+            headers: {
+                "xi-api-key": ELEVENLABS_API_KEY
+            },
+            body: formData
+        });
+
+        if (!response.ok) {
+             const errText = await response.text();
+             throw new Error(`Voice cloning failed with status ${response.status}: ${errText}`);
+        }
+
+        const data = await response.json();
+        return data.voice_id;
+    });
   }
 
   async refinePrompt(prompt: string, style: string = "Cinematic"): Promise<string> {
@@ -230,6 +349,81 @@ export class GeminiProvider implements AIProvider {
     });
 
     return result.text || script;
+  }
+
+  async generateVisualVariations(prompt: string, narration: string, projectIdea: string): Promise<string[]> {
+    return this.executeWithTelemetry('GenerateVisualVariations', async () => {
+        const sysPrompt = `Act as an expert cinematic visual developer. Based on the provided project theme, current visual concept, and narration context, generate 3 highly detailed, distinct visual direction variations for this scene. Suggest different lighting setups, camera angles, and stylistic moods (e.g., Cyberpunk, Photorealistic, Noir).
+
+        Project Theme: ${projectIdea}
+        Current Narration: ${narration}
+        Current Concept: ${prompt}
+    
+        Return strictly a JSON array of strings, where each string is a fully fleshed-out visual prompt variance. Example: ["Variation 1...", "Variation 2...", "Variation 3..."]`;
+        
+        const result = await this.genAI.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: sysPrompt,
+            config: {
+                systemInstruction: 'You are an expert art director. Respond only with a JSON array of 3 strings.',
+                responseMimeType: 'application/json',
+                temperature: 0.9,
+            }
+        });
+
+        if (!result.text) throw new Error("Verification failed.");
+        return JSON.parse(result.text);
+    });
+  }
+
+  async suggestTransition(currentSceneDesc: string, nextSceneDesc: string): Promise<string> {
+    return this.executeWithTelemetry('SuggestTransition', async () => {
+        const sysPrompt = `Act as an expert film editor. Suggest the most visually appropriate, cinematic video transition from the current scene to the next scene. Consider momentum, color profiles, and visual flow. 
+        
+        Current Scene: ${currentSceneDesc}
+        Next Scene: ${nextSceneDesc}
+        
+        Available Transitions: Cut, Fade Through Black, Cross Dissolve, Dip to Color, Slide, Wipe, Push, Zoom Blur, Glitch, Light Leak, Morph.
+        
+        Select the single most appropriate transition name from the available options. Do NOT provide a sentence, just the transition name.`;
+    
+        const result = await this.genAI.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: sysPrompt,
+            config: {
+                systemInstruction: 'You are an expert film editor. Return exactly one transition name from the list.',
+                temperature: 0.3,
+            }
+        });
+
+        if (!result.text) throw new Error("Transition suggestion failed.");
+        return result.text.trim();
+    });
+  }
+
+  async analyzeSceneMetadata(description: string, narration: string): Promise<{ suggestions: string }> {
+    return this.executeWithTelemetry('MetadataAnalysis', async () => {
+        const prompt = `Analyze the following scene.
+Description: ${description}
+Narration: ${narration}
+
+Suggest metadata improvements for better discoverability, engagement, and accessibility (like alt text, visual keywords, mood/tone tags).
+
+Return strictly a JSON object with: { "suggestions": string }`;
+
+        const result = await this.genAI.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                systemInstruction: 'You are an expert content strategist. Respond only with JSON.',
+                responseMimeType: 'application/json',
+                temperature: 0.7,
+            }
+        });
+
+        if (!result.text) throw new Error("Metadata analysis returned empty response.");
+        return JSON.parse(result.text);
+    });
   }
 
   async optimizeSEO(projectData: any): Promise<{ titles: string[], description: string, tags: string[] }> {

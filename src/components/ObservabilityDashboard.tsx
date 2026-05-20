@@ -26,7 +26,7 @@ interface Metric {
 export default function ObservabilityDashboard() {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [totalRequests, setTotalRequests] = useState(124); // Simulação ou fetch Real-time
+  const [totalRequests, setTotalRequests] = useState(0);
 
   const fetchMetrics = async () => {
     setIsRefreshing(true);
@@ -36,6 +36,8 @@ export default function ObservabilityDashboard() {
       });
       const data = await resp.json();
       setMetrics(data);
+      const total = data.reduce((acc: number, curr: any) => acc + (curr.successCount || 0) + (curr.failures || 0), 0);
+      setTotalRequests(total > 0 ? total : 0);
     } catch (error) {
       console.error('Failed to fetch metrics', error);
     } finally {

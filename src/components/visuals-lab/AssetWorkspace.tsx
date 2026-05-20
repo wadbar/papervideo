@@ -48,6 +48,11 @@ export default function AssetWorkspace() {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
   const [dropIndicatorPos, setDropIndicatorPos] = useState<'before' | 'after' | null>(null);
+  const [isAnalyzingMetadata, setIsAnalyzingMetadata] = useState(false);
+  const [isGeneratingVariations, setIsGeneratingVariations] = useState(false);
+  const [visualVariations, setVisualVariations] = useState<string[]>([]);
+  const [isSuggestingTransition, setIsSuggestingTransition] = useState(false);
+  const [isRefiningVision, setIsRefiningVision] = useState(false);
   
   const styleDropdownRef = useRef<HTMLDivElement>(null);
   const motionDropdownRef = useRef<HTMLDivElement>(null);
@@ -85,6 +90,10 @@ export default function AssetWorkspace() {
     { id: 'Sketch', label: 'Sketch', desc: 'Pencil drawing, artistic study', icon: '✏️' },
     { id: 'None', label: 'Original', desc: 'No specific style constraints', icon: '✨' },
   ];
+
+  useEffect(() => {
+    setVisualVariations([]);
+  }, [activeScene?.id]);
 
   const updateActiveScene = (updates: Partial<typeof activeScene>) => {
     createSnapshot(project.id); // Guard state before mutation
@@ -202,6 +211,45 @@ export default function AssetWorkspace() {
 
                 {/* Removed unused refinePrompt */}
 
+  const generateVariations = async () => {
+    if (isGeneratingVariations) return;
+    setIsGeneratingVariations(true);
+    setVisualVariations([]);
+    try {
+        const provider = getAIProviderInstance();
+        const variations = await provider.generateVisualVariations(
+            activeScene.description,
+            activeScene.narrationText || '',
+            project.idea
+        );
+        setVisualVariations(variations);
+    } catch (e: any) {
+        alert(`Failed to generate variations: ${e.message}`);
+    } finally {
+        setIsGeneratingVariations(false);
+    }
+  };
+
+  const autoSuggestTransition = async (currentIdx: number) => {
+    if (currentIdx >= project.scenes.length - 1 || isSuggestingTransition) return;
+    setIsSuggestingTransition(true);
+    try {
+        const provider = getAIProviderInstance();
+        const suggestion = await provider.suggestTransition(
+            project.scenes[currentIdx].description,
+            project.scenes[currentIdx + 1].description
+        );
+        createSnapshot(project.id);
+        const newScenes = [...project.scenes];
+        newScenes[currentIdx] = { ...newScenes[currentIdx], transition: suggestion };
+        onUpdate({ ...project, scenes: newScenes });
+    } catch (e: any) {
+        alert(`Failed to suggest transition: ${e.message}`);
+    } finally {
+        setIsSuggestingTransition(false);
+    }
+  };
+
   const expandDescription = async () => {
     if (isRefining) return;
     setIsRefining(true);
@@ -218,6 +266,23 @@ export default function AssetWorkspace() {
         alert(`Expansion failed: ${e.message}`);
     } finally {
         setIsRefining(false);
+    }
+  };
+
+  const analyzeMetadata = async () => {
+    if (isAnalyzingMetadata) return;
+    setIsAnalyzingMetadata(true);
+    try {
+      const provider = getAIProviderInstance();
+      const result = await provider.analyzeSceneMetadata(
+        activeScene.description,
+        activeScene.narrationText || ''
+      );
+      updateActiveScene({ metadataSuggestions: result.suggestions });
+    } catch (e: any) {
+        alert(`Analysis failed: ${e.message}`);
+    } finally {
+        setIsAnalyzingMetadata(false);
     }
   };
 
@@ -238,6 +303,47 @@ export default function AssetWorkspace() {
         alert("Global Visual Directive Applied to all drafting scenes!");
     } catch (e: any) {
         alert(`Global Analysis Failed: ${e.message}`);
+    } finally {
+        setIsGenerating(null);
+    }
+  };
+
+  const autoGenerateMissingVisuals = async () => {
+    if (isGenerating) return;
+    setIsGenerating('auto_generating_missing');
+    sysLog('Auto-filling missing vision visuals...', 'info');
+    try {
+        const provider = getAIProviderInstance();
+        const directive = await provider.analyzeVisualConsistency(project);
+        
+        const newScenes = [...project.scenes];
+        let updated = false;
+
+        for (let i = 0; i < newScenes.length; i++) {
+            const s = newScenes[i];
+            if (!s.imageUrl) {
+                sysLog(`Auto-generating visual for scene ${s.id.slice(0, 8)}`, 'info');
+                const style = s.imageStyle ?? 'Cinematic';
+                const prompt = style !== 'None' ? `Style: ${style}. ${directive}. ${s.description}` : `${directive}. ${s.description}`;
+                try {
+                    const imageUrl = await provider.generateImage(prompt);
+                    newScenes[i] = { ...s, imageUrl };
+                    updated = true;
+                } catch (err: any) {
+                    sysLog(`Failed to auto-generate for scene ${s.id.slice(0, 8)}: ${err.message}`, 'error');
+                }
+            }
+        }
+
+        if (updated) {
+            onUpdate({ ...project, scenes: newScenes });
+            sysLog('Auto-generation of missing visuals complete.', 'info');
+        } else {
+            alert('No missing visuals found or all generations failed.');
+        }
+
+    } catch (e: any) {
+        alert(`Auto Generation Failed: ${e.message}`);
     } finally {
         setIsGenerating(null);
     }
@@ -274,6 +380,15 @@ export default function AssetWorkspace() {
                         <Undo2 className="w-3.5 h-3.5" />
                     </button>
                 )}
+                <button 
+                    onClick={autoGenerateMissingVisuals}
+                    disabled={!!isGenerating}
+                    className="px-3 py-2 bg-[#1f2128] border border-blue-500/30 rounded-lg text-blue-400 text-xs font-bold flex items-center gap-2 hover:bg-[#252832] transition-all"
+                    title="Automatically generate visuals for scenes that are missing them"
+                >
+                    {isGenerating === 'auto_generating_missing' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
+                    Auto Fill Vision
+                </button>
                 <button 
                     onClick={applyGlobalStyle}
                     disabled={!!isGenerating}
@@ -328,11 +443,21 @@ export default function AssetWorkspace() {
                     </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                    <label className="text-[9px] font-bold text-[#4e515a] uppercase tracking-widest">Transition</label>
+                    <label className="text-[9px] font-bold text-[#4e515a] uppercase tracking-widest flex items-center justify-between min-w-[100px]">
+                        <span>Transition</span>
+                        <button 
+                            onClick={() => autoSuggestTransition(project.scenes.findIndex(s => s.id === activeScene.id))}
+                            disabled={isSuggestingTransition || project.scenes.findIndex(s => s.id === activeScene.id) >= project.scenes.length - 1}
+                            className="text-blue-400 hover:text-blue-300 disabled:opacity-30 disabled:hover:text-blue-400"
+                            title="Auto suggest optimal transition to next scene"
+                        >
+                            {isSuggestingTransition ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}
+                        </button>
+                    </label>
                     <div className="relative" ref={transitionDropdownRef}>
                         <button
                             onClick={() => setIsTransitionDropdownOpen(!isTransitionDropdownOpen)}
-                            className="bg-[#0d0d0f] border border-[#2a2d35] rounded px-2 py-[2.5px] text-[10px] text-blue-400 font-mono outline-none focus:border-blue-500 flex items-center gap-2 min-w-[80px]"
+                            className="bg-[#0d0d0f] border border-[#2a2d35] rounded px-2 py-[2.5px] text-[10px] text-blue-400 font-mono outline-none focus:border-blue-500 flex items-center gap-2 w-full justify-between"
                         >
                             <ArrowRightLeft className="w-3 h-3" />
                             <span>{activeScene.transition || 'Cut'}</span>
@@ -380,24 +505,71 @@ export default function AssetWorkspace() {
                     <div className="p-4 bg-[#151619] border border-[#2a2d35] rounded-xl relative group">
                         <label className="text-[10px] font-bold text-[#4e515a] uppercase mb-2 block tracking-widest flex items-center justify-between">
                             <span>Visual Concept</span>
-                            <button 
-                                onClick={expandDescription}
-                                disabled={isRefining}
-                                className="text-[9px] text-purple-400 font-bold uppercase hover:text-purple-300 transition-colors flex items-center gap-1 disabled:opacity-50"
-                            >
-                                {isRefining ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}
-                                AI Refine
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button 
+                                    onClick={generateVariations}
+                                    disabled={isGeneratingVariations}
+                                    className="text-[9px] text-blue-400 font-bold uppercase hover:text-blue-300 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                >
+                                    {isGeneratingVariations ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}
+                                    Variations
+                                </button>
+                                <button 
+                                    onClick={expandDescription}
+                                    disabled={isRefining}
+                                    className="text-[9px] text-purple-400 font-bold uppercase hover:text-purple-300 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                    title="Enhance description with cinematic lighting and camera details"
+                                >
+                                    {isRefining ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}
+                                    AI Refine
+                                </button>
+                            </div>
                         </label>
                         <textarea 
                             value={activeScene.description}
                             onChange={(e) => updateActiveScene({ description: e.target.value })}
                             className="w-full h-32 bg-black/40 border border-[#2a2d35] rounded-lg p-3 text-sm focus:border-blue-400 outline-none resize-none font-medium text-gray-400 leading-relaxed italic"
                         />
+                        
+                        {visualVariations.length > 0 && (
+                            <div className="mt-4 space-y-2">
+                                <span className="text-[10px] font-bold text-[#4e515a] uppercase tracking-widest block mb-2">Generated Variations</span>
+                                {visualVariations.map((v, i) => (
+                                    <button 
+                                        key={i}
+                                        onClick={() => updateActiveScene({ description: v })}
+                                        className="w-full text-left p-3 text-xs bg-[#1f2128]/50 border border-[#2a2d35]/50 rounded-lg hover:border-blue-500/50 hover:bg-[#252832] transition-colors leading-relaxed text-gray-300 group"
+                                    >
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className="text-[10px] font-bold text-blue-400 uppercase">Option {i+1}</span>
+                                            <span className="text-[9px] opacity-0 group-hover:opacity-100 transition-opacity font-bold">CLICK TO APPLY</span>
+                                        </div>
+                                        {v}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                     <div className="p-4 bg-[#0d0d0f] border border-[#2a2d35] rounded-xl">
-                        <label className="text-[10px] font-bold text-[#4e515a] uppercase mb-2 block tracking-widest">Narration Match</label>
-                        <p className="text-xs text-[#8e9299] leading-relaxed line-clamp-4">"{activeScene.narrationText || 'No narration for this scene.'}"</p>
+                        <label className="text-[10px] font-bold text-[#4e515a] uppercase mb-2 flex items-center justify-between tracking-widest">
+                            <span>Narration Match</span>
+                            <button 
+                                onClick={analyzeMetadata}
+                                disabled={isAnalyzingMetadata}
+                                className="text-[9px] text-green-400 font-bold uppercase hover:text-green-300 transition-colors flex items-center gap-1 disabled:opacity-50"
+                            >
+                                {isAnalyzingMetadata ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}
+                                Analyze Metadata
+                            </button>
+                        </label>
+                        <p className="text-xs text-[#8e9299] leading-relaxed line-clamp-4 mb-2">"{activeScene.narrationText || 'No narration for this scene.'}"</p>
+                        
+                        {activeScene.metadataSuggestions && (
+                            <div className="mt-3 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                                <p className="text-[10px] font-bold text-green-400 uppercase mb-1">AI Suggestions</p>
+                                <p className="text-xs text-green-100/70 whitespace-pre-wrap">{activeScene.metadataSuggestions}</p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="p-4 bg-[#151619] border border-[#2a2d35] rounded-xl space-y-4">
@@ -407,7 +579,7 @@ export default function AssetWorkspace() {
                                 Post-Processing Module
                             </label>
                             <button 
-                                onClick={() => updateActiveScene({ postProcessing: { brightness: 100, contrast: 100, saturation: 100, vignette: 0, colorGrade: 'Original', temperature: 50, grain: 0, chromaticAberration: 0 } })}
+                                onClick={() => updateActiveScene({ postProcessing: { brightness: 100, contrast: 100, saturation: 100, vignette: 0, colorGrade: 'Original', temperature: 50, grain: 0, chromaticAberration: 0, blurFx: 0 } })}
                                 className="text-[9px] font-bold text-[#4e515a] hover:text-blue-400 transition-colors uppercase tracking-tighter"
                             >
                                 [Reset_Nodes]
@@ -506,7 +678,7 @@ export default function AssetWorkspace() {
                                 />
                             </div>
 
-                            <div className="space-y-1.5 col-span-2 pt-2 border-t border-[#2a2d35]/30">
+                            <div className="space-y-1.5 pt-2 border-t border-[#2a2d35]/30">
                                 <label className="text-[9px] font-bold text-[#4e515a] uppercase flex items-center justify-between">
                                     <span>Chromatic Aberration</span>
                                     <span className="text-blue-400 font-mono">{(activeScene.postProcessing?.chromaticAberration || 0).toFixed(1)}</span>
@@ -516,6 +688,19 @@ export default function AssetWorkspace() {
                                     value={activeScene.postProcessing?.chromaticAberration || 0}
                                     onChange={(e) => updatePostProcessing({ chromaticAberration: parseFloat(e.target.value) })}
                                     className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-purple-500"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5 pt-2 border-t border-[#2a2d35]/30">
+                                <label className="text-[9px] font-bold text-[#4e515a] uppercase flex items-center justify-between">
+                                    <span>Gaussian Blur</span>
+                                    <span className="text-blue-400 font-mono">{(activeScene.postProcessing?.blurFx || 0).toFixed(1)}px</span>
+                                </label>
+                                <input 
+                                    type="range" min="0" max="10" step="0.5"
+                                    value={activeScene.postProcessing?.blurFx || 0}
+                                    onChange={(e) => updatePostProcessing({ blurFx: parseFloat(e.target.value) })}
+                                    className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-blue-500"
                                 />
                             </div>
                         </div>

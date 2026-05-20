@@ -25,8 +25,6 @@ import {
   Tags,
   Type
 } from 'lucide-react';
-
-// ... (skipping some imports for brevity in TargetContent matching, but I will include them in ReplacementContent)
 import { motion, AnimatePresence } from 'motion/react';
 import { VideoProject } from '../core/domain/types';
 import confetti from 'canvas-confetti';
@@ -239,11 +237,26 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
     uploadProgressHistory.current = [];
 
     try {
-      // In a real scenario, we'd use the actual exported video file.
-      // Here we simulate a significant blob size to demonstrate the progress bar.
-      const simulatedSize = 10 * 1024 * 1024; // 10MB
-      const dummyContent = new Uint8Array(simulatedSize);
-      const dummyBlob = new Blob([dummyContent], { type: 'video/mp4' });
+      let finalBlob = new Blob([], { type: 'video/mp4' });
+
+      // Gather real bytes from the generated videos in the project
+      // To avoid huge memory spikes, we'll stream/fetch the first available video as our upload target
+      const videoScenes = project.scenes.filter(s => s.videoUrl);
+      if (videoScenes.length > 0 && videoScenes[0].videoUrl) {
+         try {
+            const resp = await fetch(videoScenes[0].videoUrl);
+            if (resp.ok) {
+              finalBlob = await resp.blob();
+            }
+         } catch (err) {
+            console.error("Failed to fetch real video for upload, falling back to minimal payload", err);
+         }
+      }
+
+      // If no valid video was generated yet, we throw an error instead of mocking
+      if (finalBlob.size === 0) {
+         throw new Error("No real video data found in the project. Please ensure scenes have generated videos.");
+      }
 
       const metadata = {
         title: uploadTitle,
@@ -254,7 +267,7 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
       };
 
       const videoId = await youtubeChannelService.uploadVideo(
-        dummyBlob, 
+        finalBlob, 
         metadata,
         (progress) => {
           const percent = Math.round((progress.loaded / progress.total) * 100);
