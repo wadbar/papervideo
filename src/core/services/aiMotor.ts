@@ -225,26 +225,64 @@ class AIMotorInternal {
     let providers: { id: string; run: () => Promise<any> }[] = [];
 
     if (mode === 'video') {
-       providers = [
-         { id: 'gemini', run: () => this.callGeminiVideo(config.prompt, config.payload?.imageUrl, config.payload?.duration, config.payload?.motion) },
-         { id: 'nvidia', run: () => this.callNvidiaVideo(config.prompt, config.payload?.imageUrl) }
-       ];
+       const vProviders = [];
+       if (process.env.REPLICATE_API_TOKEN) vProviders.push({ id: 'gemini', run: () => this.callGeminiVideo(config.prompt, config.payload?.imageUrl, config.payload?.duration, config.payload?.motion) });
+       if (process.env.NVIDIA_API_KEY) vProviders.push({ id: 'nvidia', run: () => this.callNvidiaVideo(config.prompt, config.payload?.imageUrl) });
+       
+       if (vProviders.length === 0) {
+         vProviders.push({ id: 'fallback', run: async () => ({ model: 'simulation-video', content: 'Video service unconfigured.' }) });
+       }
+       providers = vProviders;
     } else if (mode === 'image') {
-       providers = [
-         { id: 'gemini', run: () => this.callGeminiImage(config.prompt) },
-         { id: 'nvidia', run: () => this.callNvidiaImage(config.prompt) }
-       ];
+       const iProviders = [];
+       if (process.env.HUGGING_FACE_TOKEN || process.env.REPLICATE_API_TOKEN) iProviders.push({ id: 'gemini', run: () => this.callGeminiImage(config.prompt) });
+       if (process.env.NVIDIA_API_KEY) iProviders.push({ id: 'nvidia', run: () => this.callNvidiaImage(config.prompt) });
+       
+       if (iProviders.length === 0) {
+         iProviders.push({ id: 'fallback', run: async () => ({ model: 'simulation-image', content: 'Image service unconfigured.' }) });
+       }
+       providers = iProviders;
+    } else if (mode === 'audio') {
+       const aProviders = [];
+       if (process.env.ELEVENLABS_API_KEY) aProviders.push({ id: 'gemini', run: () => this.callElevenLabsClone(config.payload?.voiceName, config.payload?.audioSample) });
+       
+       if (aProviders.length === 0) {
+         aProviders.push({ id: 'fallback', run: async () => ({ model: 'simulation-audio', content: { id: 'mock', name: 'Mock Voice', provider: 'Simulation' } }) });
+       }
+       providers = aProviders;
     } else {
-       providers = [
-         { id: 'ollama', run: () => this.callOllama(config.prompt, config.systemInstruction || '', config.temperature || 0.7) },
-         { id: 'gemini', run: () => this.callGemini(config.prompt, config.systemInstruction || '', config.temperature || 0.7, responseType) },
-         { id: 'nvidia', run: () => this.callNvidia(config.prompt, config.systemInstruction || '', config.temperature || 0.7, responseType, maxTokens) },
-         { id: 'anthropic', run: () => this.callAnthropic(config.prompt, config.systemInstruction || '', config.temperature || 0.7, maxTokens) },
-         { id: 'openrouter', run: () => this.callOpenRouter(config.prompt, config.systemInstruction || '', config.temperature || 0.7, maxTokens) }
-       ];
+       const availableProviders = [];
+       
+       if (process.env.OLLAMA_HOST || process.env.ENABLE_OLLAMA === 'true') {
+         availableProviders.push({ id: 'ollama', run: () => this.callOllama(config.prompt, config.systemInstruction || '', config.temperature || 0.7) });
+       }
+       
+       if (process.env.GEMINI_API_KEY) {
+         availableProviders.push({ id: 'gemini', run: () => this.callGemini(config.prompt, config.systemInstruction || '', config.temperature || 0.7, responseType) });
+       }
+       
+       if (process.env.NVIDIA_API_KEY) {
+         availableProviders.push({ id: 'nvidia', run: () => this.callNvidia(config.prompt, config.systemInstruction || '', config.temperature || 0.7, responseType, maxTokens) });
+       }
+       
+       if (process.env.ANTHROPIC_API_KEY) {
+         availableProviders.push({ id: 'anthropic', run: () => this.callAnthropic(config.prompt, config.systemInstruction || '', config.temperature || 0.7, maxTokens) });
+       }
+       
+       if (process.env.OPENROUTER_API_KEY) {
+         availableProviders.push({ id: 'openrouter', run: () => this.callOpenRouter(config.prompt, config.systemInstruction || '', config.temperature || 0.7, maxTokens) });
+       }
+
+       // Fallback logic if NO keys are provided at all (Simulation Mode for Industrial Stability)
+       if (availableProviders.length === 0) {
+         this.log('WARN', 'CORE', 'AMBIENTE NÃO CONFIGURADO: Nenhum provedor de IA disponível. Ativando Modo de Simulação Estruturada.');
+         availableProviders.push({ id: 'fallback', run: async () => ({ model: 'simulation-v1', content: config.responseType === 'json' ? '{}' : 'AI Service is in configuration mode. Please provide API Keys.' }) });
+       }
+
+       providers = availableProviders;
 
        // INTEGRAÇÃO AI STUDIO NATIVA: Prioriza Gemini como motor primário no ambiente
-       const isAIStudioEnv = !!process.env.GEMINI_API_KEY && process.env.OLLAMA_HOST === undefined;
+       const isAIStudioEnv = !!process.env.GEMINI_API_KEY && (!process.env.OLLAMA_HOST || process.env.ENABLE_OLLAMA !== 'true');
        if (isAIStudioEnv || process.env.PRIORITIZE_GEMINI === 'true') {
            const geminiIdx = providers.findIndex(p => p.id === 'gemini');
            if (geminiIdx > -1) {
@@ -662,6 +700,66 @@ class AIMotorInternal {
    * RECURSOS ADICIONAIS (PRESERVAÇÃO EVOLUTIVA)
    */
 
+  public async analyzeVisualConsistency(projectData: any) {
+    this.log('INFO', 'CONSISTENCY', 'Analizando consistência visual global do projeto.');
+    const prompt = `Act as an expert Art Director. Analyze the following video project (idea and current scenes) and establish a "Universal Visual Directive". 
+    This directive should describe a consistent artistic style, lighting palette, and camera philosophy that all scenes must follow to look like they belong to the same professional film.
+    
+    Project Idea: ${projectData.idea}
+    Scenes Count: ${projectData.scenes?.length}
+    Tone: ${projectData.tone}
+    
+    Return ONLY the concise, high-impact Visual Directive (no chatter).`;
+
+    const response = await this.execute({ 
+      prompt, 
+      systemInstruction: 'You are an elite art director. Respond with ONLY the directive text.' 
+    });
+    return response.content;
+  }
+
+  public async generateScript(idea: string, audience: string, tone: string, length: string, keywords: string[], pacing: string) {
+    this.log('INFO', 'SCRIPT', 'Orquestrando geração de roteiro estruturado.');
+    const prompt = `Crie um roteiro de vídeo completo e detalhado.
+    Ideia: ${idea}
+    Público: ${audience}
+    Tom: ${tone}
+    Duração: ${length}
+    Keywords: ${keywords.join(', ')}
+    Pacing: ${pacing}
+
+    Retorne estritamente um JSON com:
+    {
+      "script": "O texto completo do roteiro em Markdown",
+      "scenes": [
+        {
+          "description": "Descrição visual cinematográfica detalhada para geração de imagem",
+          "narrationText": "O texto que deve ser narrado nesta cena"
+        }
+      ]
+    }`;
+
+    const response = await this.execute({ 
+      prompt, 
+      responseType: 'json', 
+      systemInstruction: 'Você é um roteirista premiado. Responda apenas com JSON.' 
+    });
+    return response.content;
+  }
+
+  public async refineScript(script: string, instructions: string) {
+    this.log('INFO', 'REFINE', 'Refinando lógica e fluxo do roteiro.');
+    const prompt = `Refine this video script according to these instructions: ${instructions}
+    
+    Current Script:
+    ${script}`;
+
+    const response = await this.execute({ 
+      prompt, 
+      systemInstruction: 'You are a senior script doctor. Respond with ONLY the refined script in Markdown.' 
+    });
+    return response.content;
+  }
   public async generateVisualVariations(prompt: string, narration: string, projectIdea: string) {
     this.log('INFO', 'VISION', 'Generating visual variations.');
     const sysPrompt = `Act as an expert cinematic visual developer. Based on the provided project theme, current visual concept, and narration context, generate 3 highly detailed, distinct visual direction variations for this scene. Suggest different lighting setups, camera angles, and stylistic moods (e.g., Cyberpunk, Photorealistic, Noir).
@@ -718,24 +816,75 @@ class AIMotorInternal {
   }
 
   public async optimizeSEO(projectData: any) {
-    this.log('INFO', 'SEO', 'Gerando metadados otimizados para YouTube.');
-    const prompt = `Based on this video project, generate:
-    1. Three high-CTR YouTube titles.
-    2. An SEO-optimized description with hashtags.
-    3. A list of relevant tags.
+    this.log('INFO', 'SEO', 'Gerando metadados otimizados com contexto visual.');
     
-    Project Idea: ${projectData.idea}
+    // Aggregate visual context for better SEO
+    const visualContent = projectData.scenes?.slice(0, 5).map((s: any) => s.description).join(' | ');
+    const narrationSnippet = projectData.scenes?.slice(0, 3).map((s: any) => s.narrationText).join(' ');
+
+    const prompt = `ACT AS AN ELITE GROWTH HACKER & EXTREME SEO SPECIALIST.
+    
+    PROJECT_DATA:
+    Idea: ${projectData.idea}
     Target Audience: ${projectData.targetAudience}
     Keywords: ${projectData.keywords?.join(', ')}
+    Visual Pulse: ${visualContent}
+    Narration Flow: ${narrationSnippet}
+    
+    Generate hyper-optimized metadata for maximum organic reach:
+    1. Five Viral Titles (High CTR, varied psychology hooks)
+    2. One Master Description (Hook -> Value -> Chapters -> Community Call -> Tags)
+    3. Twenty Precision Tags
     
     Return strictly a JSON object with: { "titles": string[], "description": string, "tags": string[] }`;
 
     const response = await this.execute({ 
       prompt, 
       responseType: 'json', 
-      systemInstruction: 'You are an expert YouTube SEO specialist. Respond only with JSON.' 
+      systemInstruction: 'You are a master of algorithmic reach. Respond only with JSON.' 
     });
     return response.content;
+  }
+
+  public async cloneVoice(name: string, audioBase64: string) {
+    this.log('INFO', 'AUDIO', `Iniciando protocolo de voz clonada: ${name}`);
+    
+    const response = await this.execute({
+      prompt: `CLONE_VOICE_PROTOCOL: ${name}. Analyze specimen timbre and prosody.`,
+      mode: 'audio',
+      payload: { voiceName: name, audioSample: audioBase64 }
+    });
+
+    return response.content;
+  }
+
+  public async generateVideo(prompt: string, imageUrl?: string, duration: number = 4, motion: number = 5) {
+    this.log('INFO', 'VIDEO', 'Invocando geração de vídeo generativo.');
+    const response = await this.execute({
+      prompt,
+      mode: 'video',
+      payload: { imageUrl, duration, motion }
+    });
+    return response.content;
+  }
+
+  public async suggestThumbnail(project: any) {
+    this.log('INFO', 'THUMBNAIL', 'Designing high-CTR thumbnail variations.');
+    const prompt = `THUMBNAIL_DIRECTION_NODE: ${JSON.stringify({idea: project.idea, title: project.title, scriptSnippet: project.script?.slice(0, 500)})}`;
+    
+    const systemInstruction = `Act as an elite YouTube designer. Design 3 distinct thumbnail concepts.
+    Return strictly a JSON array of objects: 
+    [
+      { "title": "Magnetic Hook", "subtitle": "Visual Context", "bgColor": "hex", "textColor": "hex", "accentColor": "hex", "layout": "centered|left|split" }
+    ]`;
+
+    const response = await this.execute({ 
+      prompt, 
+      mode: 'text', 
+      responseType: 'json',
+      systemInstruction
+    });
+    return response;
   }
 
   public async refinePrompt(simplePrompt: string, style: string = 'Cinematic') {
@@ -778,13 +927,46 @@ class AIMotorInternal {
     return response.content;
   }
 
+  private async callElevenLabsClone(name: string, base64: string) {
+    const key = process.env.ELEVENLABS_API_KEY;
+    if (!key) throw new Error("ELEVENLABS_API_KEY required for cloning.");
+
+    const base64Data = base64.replace(/^data:audio\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, "base64");
+    
+    // Using a simple fetch with form-data logic as standard browser-like FormData might be tricky in Node without libs
+    // But since this is a server environment, we can use the 'form-data' package or just native fetch if it supports it
+    // For simplicity in this env, we'll use a mocked success if key is present for the sake of the prototype if real multipart is hard, 
+    // but I'll try real fetch first.
+    
+    const formData = new FormData();
+    formData.append("name", name);
+    // Convert buffer to blob for fetch
+    const blob = new Blob([buffer], { type: "audio/mp3" });
+    formData.append("files", blob, "sample.mp3");
+
+    const resp = await fetch("https://api.elevenlabs.io/v1/voices/add", {
+      method: "POST",
+      headers: { "xi-api-key": key },
+      body: formData as any
+    });
+
+    if (!resp.ok) {
+       const text = await resp.text();
+       throw new Error(`ElevenLabs Clone Error: ${resp.status} - ${text}`);
+    }
+    const data = await resp.json();
+    return { model: 'eleven-labs-v1', content: { id: data.voice_id, name, provider: 'ElevenLabs' } };
+  }
+
   public getMetrics() {
     return Array.from(this.registry.entries()).map(([provider, state]) => ({
       provider,
       status: state.state,
-      successRate: (state.successCount / (state.successCount + state.failures || 1)) * 100,
-      avgLatency: state.avgLatency,
-      failures: state.failures,
+      successRate: ((state.successCount || 0) / ((state.successCount || 0) + (state.failures || 0) || 1)) * 100,
+      avgLatency: state.avgLatency || 0,
+      failures: state.failures || 0,
+      successCount: state.successCount || 0,
       lastFail: state.lastFail
     }));
   }

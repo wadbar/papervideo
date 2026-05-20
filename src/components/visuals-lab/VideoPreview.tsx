@@ -65,7 +65,7 @@ export default function VideoPreview({ url, poster, effects }: VideoPreviewProps
 
   return (
     <div 
-      className="relative aspect-video w-full bg-black rounded-xl overflow-hidden group shadow-2xl border-2 border-[#1f2128]"
+      className="relative aspect-video w-full bg-black rounded-[2rem] overflow-hidden group shadow-2xl border border-outline-variant/30"
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
     >
@@ -73,7 +73,7 @@ export default function VideoPreview({ url, poster, effects }: VideoPreviewProps
         ref={videoRef}
         src={url}
         poster={poster}
-        className="w-full h-full object-cover transition-all duration-500 ease-in-out"
+        className="w-full h-full object-cover transition-all duration-700 ease-in-out"
         style={{ filter: showDirect ? 'none' : getFilterString(effects) }}
         onTimeUpdate={handleTimeUpdate}
         onClick={togglePlay}
@@ -84,23 +84,25 @@ export default function VideoPreview({ url, poster, effects }: VideoPreviewProps
         playsInline
       />
 
-      {/* Grain Overlay */}
-      {!showDirect && effects?.grain && effects.grain > 0 && (
-        <div 
-          className="absolute inset-0 pointer-events-none z-10 opacity-[0.03] mix-blend-overlay"
-          style={{ 
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-            opacity: effects.grain * 0.15 
-          }}
-        />
-      )}
-
-      {/* Vignette Overlay */}
-      {effects?.vignette && effects.vignette > 0 && (
-        <div 
-          className="absolute inset-0 pointer-events-none transition-all duration-500 ease-in-out z-10"
-          style={showDirect ? {} : getVignetteStyle(effects.vignette)}
-        />
+      {/* FX Overlays */}
+      {!showDirect && (
+        <>
+            {effects?.grain && effects.grain > 0 && (
+                <div 
+                    className="absolute inset-0 pointer-events-none z-10 opacity-[0.03] mix-blend-overlay"
+                    style={{ 
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                        opacity: effects.grain * 0.15 
+                    }}
+                />
+            )}
+            {effects?.vignette && effects.vignette > 0 && (
+                <div 
+                    className="absolute inset-0 pointer-events-none transition-all duration-500 ease-in-out z-10"
+                    style={getVignetteStyle(effects.vignette)}
+                />
+            )}
+        </>
       )}
 
       <AnimatePresence>
@@ -109,29 +111,30 @@ export default function VideoPreview({ url, poster, effects }: VideoPreviewProps
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 flex flex-col justify-end p-4 transition-all"
+            className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-6 transition-all z-20"
           >
-            {/* Center Play Button Overlay */}
+            {/* Play/Pause Large Overlay */}
             {!isPlaying && (
                 <div className="absolute inset-0 flex items-center justify-center">
                     <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={togglePlay}
-                        className="w-16 h-16 rounded-full bg-blue-600/90 text-white flex items-center justify-center backdrop-blur-sm shadow-2xl"
+                        className="w-20 h-20 rounded-3xl bg-primary text-on-primary flex items-center justify-center shadow-2xl shadow-primary/20"
                     >
-                        <Play className="w-8 h-8 fill-current" />
+                        <Play className="w-10 h-10 fill-current" />
                     </motion.button>
                 </div>
             )}
 
-            {/* Custom Control Bar */}
-            <div className="space-y-3">
-                {/* Progress Bar */}
-                <div className="relative group/progress h-1.5 w-full bg-white/20 rounded-full cursor-pointer overflow-hidden">
-                    <div 
-                        className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-100"
-                        style={{ width: `${progress}%` }}
+            {/* Glass Control Bar */}
+            <div className="bg-surface/5 backdrop-blur-xl rounded-3xl p-4 border border-white/10 space-y-4">
+                {/* Progress Node */}
+                <div className="relative group/progress h-1.5 w-full bg-white/10 rounded-full cursor-pointer overflow-hidden transition-all hover:h-2">
+                    <motion.div 
+                        className="absolute top-0 left-0 h-full bg-primary"
+                        animate={{ width: `${progress}%` }}
+                        transition={{ type: 'spring', damping: 20, stiffness: 100 }}
                     />
                     <input 
                         type="range" 
@@ -139,27 +142,25 @@ export default function VideoPreview({ url, poster, effects }: VideoPreviewProps
                         max="100" 
                         value={progress}
                         onChange={handleSeek}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
                 </div>
 
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button onClick={togglePlay} className="text-white hover:text-blue-400 transition-colors">
-                            {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
+                    <div className="flex items-center gap-5">
+                        <button onClick={togglePlay} className="text-white hover:text-primary transition-colors">
+                            {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
                         </button>
                         
-                        <div className="flex items-center gap-2 group/volume">
-                            <button onClick={() => setIsMuted(!isMuted)} className="text-white hover:text-blue-400 transition-colors">
-                                {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                            </button>
-                        </div>
+                        <button onClick={() => setIsMuted(!isMuted)} className="text-white hover:text-primary transition-colors">
+                            {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                        </button>
 
-                        <div className="h-4 w-px bg-white/20" />
+                        <div className="h-4 w-px bg-white/10 mx-1" />
 
                         <button 
                             onClick={() => setIsLooping(!isLooping)} 
-                            className={`transition-colors ${isLooping ? 'text-blue-400' : 'text-white hover:text-blue-400'}`}
+                            className={`transition-colors p-2 rounded-xl ${isLooping ? 'bg-primary/20 text-primary' : 'text-white hover:text-primary'}`}
                             title="Toggle Loop"
                         >
                             <Repeat className="w-4 h-4" />
@@ -169,27 +170,29 @@ export default function VideoPreview({ url, poster, effects }: VideoPreviewProps
                             onMouseDown={() => setShowDirect(true)} 
                             onMouseUp={() => setShowDirect(false)}
                             onMouseLeave={() => setShowDirect(false)}
-                            className={`transition-colors ${showDirect ? 'text-orange-400' : 'text-white hover:text-orange-400'}`}
-                            title="Hold to see original (Before/After)"
+                            className={`transition-all px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${showDirect ? 'm3-button-primary scale-95' : 'text-white border-white/20 hover:border-white/40'}`}
+                            title="Compare original vision"
                         >
-                            <div className="text-[9px] font-bold border border-current px-1 rounded">B/A</div>
+                            Compare
                         </button>
                         
                         <a 
                             href={url} 
-                            download="scene-video.mp4" 
-                            className="text-white hover:text-blue-400 transition-colors"
-                            title="Download Clip"
+                            download="neural-sequence.mp4" 
+                            className="text-white/60 hover:text-white transition-colors flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest"
+                            title="Export Node"
                         >
                             <Download className="w-4 h-4" />
+                            <span className="hidden sm:inline">Export</span>
                         </a>
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <div className="text-[10px] font-mono text-white/60 font-bold uppercase tracking-widest bg-black/40 px-2 py-1 rounded">
-                            {progress.toFixed(0)}% SYNTH_READY
+                        <div className="hidden sm:flex flex-col items-end opacity-60">
+                            <span className="text-[8px] font-black text-white uppercase tracking-[0.3em]">Temporal Delta</span>
+                            <span className="text-[10px] font-mono text-white italic">{progress.toFixed(1)}%</span>
                         </div>
-                        <button onClick={toggleFullscreen} className="text-white hover:text-blue-400 transition-colors">
+                        <button onClick={toggleFullscreen} className="text-white hover:text-primary transition-colors">
                             <Maximize2 className="w-5 h-5" />
                         </button>
                     </div>
@@ -199,12 +202,18 @@ export default function VideoPreview({ url, poster, effects }: VideoPreviewProps
         )}
       </AnimatePresence>
 
-      {/* Top HUD */}
-      <div className="absolute top-4 left-4 flex gap-2 pointer-events-none">
-        <div className="flex items-center gap-2 px-2 py-1 bg-black/40 backdrop-blur-md rounded border border-white/10">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            <span className="text-[8px] font-bold text-white uppercase tracking-tighter">HD Preview</span>
+      {/* HUD Telemetry */}
+      <div className="absolute top-6 left-6 flex gap-3 pointer-events-none z-30">
+        <div className="px-3 py-1.5 bg-background/20 backdrop-blur-md rounded-full border border-white/5 flex items-center gap-2.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            <span className="text-[9px] font-black text-white uppercase tracking-[0.2em] opacity-80">Synth Feed_4K</span>
         </div>
+        {isLooping && (
+            <div className="px-3 py-1.5 bg-primary/10 backdrop-blur-md rounded-full border border-primary/20 flex items-center gap-2">
+                <Repeat className="w-2.5 h-2.5 text-primary" />
+                <span className="text-[9px] font-black text-primary uppercase tracking-[0.2em]">Recursive</span>
+            </div>
+        )}
       </div>
     </div>
   );

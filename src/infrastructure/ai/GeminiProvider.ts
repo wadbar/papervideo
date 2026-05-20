@@ -401,6 +401,32 @@ export class GeminiProvider implements AIProvider {
     });
   }
 
+  async suggestThumbnail(projectData: any): Promise<any[]> {
+    return this.executeWithTelemetry('ThumbnailSuggestion', async () => {
+      const prompt = `Act as an elite YouTube thumbnail designer. Review this video concept:
+      Title: "${projectData.title}"
+      Idea: "${projectData.idea}"
+      
+      Suggest 3 high-impact thumbnail configurations including:
+      - title: The text to show on the thumbnail
+      - subtitle: Smaller context text
+      - bgColor: Primary background color (HEX)
+      - textColor: primary text color (HEX)
+      - accentColor: Accent geometric color (HEX)
+      - layout: Either 'centered', 'left', or 'split'
+      
+      Return as a JSON array of 3 objects. No chatter.`;
+
+      const result = await this.genAI.models.generateContent({
+        model: "gemini-3.1-flash-preview",
+        contents: prompt,
+        config: { responseMimeType: "application/json" }
+      });
+
+      return JSON.parse(result.text || "[]");
+    });
+  }
+
   async analyzeSceneMetadata(description: string, narration: string): Promise<{ suggestions: string }> {
     return this.executeWithTelemetry('MetadataAnalysis', async () => {
         const prompt = `Analyze the following scene.

@@ -26,6 +26,8 @@ export interface VideoProject {
   exportSettings?: {
     resolution: '1080p' | '4k' | '720p';
     framerate: 24 | 30 | 60;
+    aspectRatio: '16:9' | '9:16' | '1:1';
+    preset?: 'Youtube' | 'TikTok' | 'Instagram' | 'Custom';
   };
 }
 
@@ -56,4 +58,6 @@ export interface ProviderConfig {
 export interface ClonedVoice {
   id: string;
   name: string;
+  sampleUrl?: string;
+  provider: string;
 }

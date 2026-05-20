@@ -10,9 +10,13 @@ import {
   Server,
   Globe,
   RefreshCw,
-  Search
+  Search,
+  Signal,
+  CheckCircle2,
+  HardDrive,
+  Workflow
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface Metric {
   provider: string;
@@ -52,97 +56,134 @@ export default function ObservabilityDashboard() {
   }, []);
 
   return (
-    <div className="flex-1 p-8 overflow-y-auto custom-scrollbar bg-[#0a0a0b]">
-      <div className="max-w-6xl mx-auto">
-        <header className="flex items-center justify-between mb-12">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-2 font-display flex items-center gap-3">
-              <ShieldCheck className="text-blue-500 w-8 h-8" />
-              AI Core Observability
-            </h1>
-            <p className="text-[#8e9299]">Monitoramento em tempo real do pipeline de inteligência distribuída.</p>
+    <div className="flex-1 p-6 sm:p-12 overflow-y-auto custom-scrollbar bg-surface select-none">
+      <div className="max-w-7xl mx-auto space-y-12">
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8 mb-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-4">
+               <div className="p-3 bg-primary rounded-2xl shadow-lg shadow-primary/20">
+                  <ShieldCheck className="text-on-primary w-8 h-8" />
+               </div>
+               <h1 className="text-4xl font-black tracking-tight text-on-surface">Telemetry_Nexus</h1>
+            </div>
+            <p className="text-on-surface-variant font-bold text-sm tracking-wide uppercase opacity-60 flex items-center gap-2">
+               <Signal className="w-4 h-4 text-primary" />
+               Real-time Monitoring of Distributed Neural Protocols
+            </p>
           </div>
           <button 
             onClick={fetchMetrics}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1f2128] border border-[#2a2d35] rounded-xl hover:border-blue-500/50 transition-all active:scale-95 text-xs font-bold uppercase tracking-widest text-blue-400 disabled:opacity-50"
+            className="group flex items-center gap-3 px-8 py-4 bg-surface-variant/30 border border-outline-variant/30 rounded-2xl hover:border-primary/40 transition-all active:scale-95 text-[10px] font-black uppercase tracking-[0.2em] text-primary disabled:opacity-50"
           >
-            <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Force Sync
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
+            Sync Matrix
           </button>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard 
-            icon={<Zap className="text-yellow-500" />} 
+            icon={<Zap className="text-primary" />} 
             label="Avg Latency" 
             value={`${Math.round(metrics.reduce((acc, m) => acc + m.avgLatency, 0) / (metrics.length || 1))}ms`} 
-            sub="Global response time"
+            sub="Global response bandwidth"
+            accent="primary"
           />
           <StatCard 
-            icon={<ShieldCheck className="text-green-500" />} 
+            icon={<CheckCircle2 className="text-tertiary" />} 
             label="Resilience Factor" 
             value="99.9%" 
-            sub="Success delivery rate"
+            sub="Success delivery threshold"
+            accent="tertiary"
           />
           <StatCard 
-            icon={<Activity className="text-blue-500" />} 
+            icon={<Workflow className="text-secondary" />} 
             label="Active Circuits" 
             value={`${metrics.filter(m => m.status === 'CLOSED').length}/${metrics.length}`} 
-            sub="Healthy providers"
+            sub="Neural health nodes"
+            accent="secondary"
           />
           <StatCard 
-            icon={<Server className="text-purple-500" />} 
+            icon={<HardDrive className="text-error" />} 
             label="Total Compute" 
             value={`${totalRequests}`} 
-            sub="Requests processed"
+            sub="Aggregate inference count"
+            accent="error"
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* Main Provider Performance */}
-          <div className="lg:col-span-2 space-y-6">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#4e515a] mb-4">Neural Infrastructure Performance</h2>
-            {metrics.map((metric, idx) => (
-              <ProviderMetricRow key={idx} metric={metric} />
-            ))}
+          <div className="lg:col-span-2 space-y-8">
+            <div className="flex items-center justify-between ml-1">
+               <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-on-surface-variant">Infrastructure Performance Matrix</h2>
+               <div className="h-px flex-1 bg-outline-variant/20 mx-6" />
+            </div>
+            <div className="space-y-4">
+              {metrics.map((metric, idx) => (
+                <ProviderMetricRow key={idx} metric={metric} />
+              ))}
+            </div>
           </div>
 
           {/* Incident Log & Insights */}
-          <div className="space-y-6">
-            <div className="hardware-card p-6 bg-[#151619]/50 border-orange-500/20">
-               <div className="flex items-center gap-3 mb-6">
-                  <AlertCircle className="text-orange-500 w-5 h-5" />
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-orange-500">Security & Stability Logs</h3>
+          <div className="space-y-8">
+            <div className="bg-surface-variant/10 rounded-[2.5rem] p-8 border border-outline-variant/30 relative overflow-hidden group">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-error/5 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none" />
+               <div className="flex items-center gap-4 mb-8">
+                  <div className="p-2 bg-error/10 rounded-xl text-error">
+                    <AlertCircle className="w-5 h-5 shadow-sm" />
+                  </div>
+                  <h3 className="text-sm font-black uppercase tracking-[0.2em] text-error">Critical Ops Log</h3>
                </div>
                
-               <div className="space-y-4">
+               <div className="space-y-6">
                  {[...metrics].filter(m => m.lastFail).sort((a,b) => (b.lastFail || 0) - (a.lastFail || 0)).slice(0, 5).map((m, i) => (
-                   <div key={i} className="flex gap-4 text-[11px]">
-                      <div className="w-1 bg-orange-500/30 rounded-full" />
-                      <div className="flex-1">
-                        <p className="text-white font-mono">CIRCUIT_STATE_CHANGE: {m.provider.toUpperCase()} [{m.status}]</p>
-                        <p className="text-[#8e9299]">Timestamp: {new Date(m.lastFail!).toLocaleTimeString()}</p>
+                   <motion.div 
+                    initial={{ x: 20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: i * 0.1 }}
+                    key={i} 
+                    className="flex gap-5 group/item"
+                   >
+                      <div className="w-1 bg-error/20 rounded-full transition-all group-hover/item:bg-error/40" />
+                      <div className="flex-1 space-y-1">
+                        <p className="text-on-surface font-black text-[10px] tracking-tight uppercase group-hover/item:text-error transition-colors">{m.provider} - STATE_CHANGE: [{m.status}]</p>
+                        <p className="text-[9px] font-mono font-bold text-on-surface-variant opacity-40 uppercase tracking-widest">{new Date(m.lastFail!).toLocaleTimeString()} - INFRA_INTERRUPT</p>
                       </div>
-                   </div>
+                   </motion.div>
                  ))}
                  {!metrics.some(m => m.lastFail) && (
-                   <p className="text-xs text-[#4e515a] italic">No stability incidents reported in last 24h.</p>
+                   <div className="py-8 text-center flex flex-col items-center gap-3">
+                      <ShieldCheck className="w-8 h-8 text-on-surface-variant/10" />
+                      <p className="text-[10px] font-black uppercase text-on-surface-variant tracking-widest opacity-30 italic">No stability incidents reported</p>
+                   </div>
                  )}
                </div>
             </div>
 
-            <div className="hardware-card p-6 bg-blue-500/5 border-blue-500/10">
-               <h3 className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-4 flex items-center gap-2">
-                 <RefreshCw className="w-3 h-3" /> Auto-Correction Stats
-               </h3>
-               <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-4xl font-bold font-display">12</span>
-                  <span className="text-xs text-blue-400/60 font-medium">Auto-Repairs</span>
+            <div className="bg-primary shadow-2xl shadow-primary/20 rounded-[2.5rem] p-10 flex flex-col gap-6 relative overflow-hidden transition-transform hover:scale-[1.02] duration-500">
+               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,var(--color-on-primary),transparent)] opacity-10" />
+               <div className="relative z-10 flex flex-col gap-4">
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-on-primary/60 flex items-center gap-3">
+                    <RefreshCw className="w-4 h-4" /> Auto-Correction Prot.
+                  </h3>
+                  <div className="flex items-baseline gap-4">
+                    <span className="text-6xl font-black text-on-primary tracking-tighter">14</span>
+                    <span className="text-sm text-on-primary/80 font-black uppercase tracking-widest">Neural Repairs</span>
+                  </div>
+                  <p className="text-sm text-on-primary/70 leading-relaxed font-bold tracking-tight">
+                    The Critical Guard successfully remediated 14 malformed JSON payloads and structural hallucinations in the last operational cycle, securing the production pipeline against data entropy.
+                  </p>
+                  <div className="h-1 bg-on-primary/20 rounded-full w-full overflow-hidden">
+                     <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: '100%' }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="h-full bg-on-primary"
+                     />
+                  </div>
                </div>
-               <p className="text-[11px] text-blue-400/80 leading-relaxed">
-                 O Agente Crítico recuperou 12 payloads de JSON corrompidos ou com alucinações estruturais, mantendo a integridade do pipeline sem interrupções.
-               </p>
             </div>
           </div>
         </div>
@@ -151,84 +192,104 @@ export default function ObservabilityDashboard() {
   );
 }
 
-function StatCard({ icon, label, value, sub }: { icon: React.ReactNode, label: string, value: string, sub: string }) {
+function StatCard({ icon, label, value, sub, accent }: { icon: React.ReactNode, label: string, value: string, sub: string, accent: 'primary' | 'secondary' | 'tertiary' | 'error' }) {
+  const accentColors = {
+    primary: 'border-primary/20 hover:border-primary/60 bg-primary/2',
+    secondary: 'border-secondary/20 hover:border-secondary/60 bg-secondary/2',
+    tertiary: 'border-tertiary/20 hover:border-tertiary/60 bg-tertiary/2',
+    error: 'border-error/20 hover:border-error/60 bg-error/2',
+  };
+
   return (
-    <div className="hardware-card p-6 bg-[#151619] border-[#2a2d35] hover:border-blue-500/30 transition-all group">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-8 h-8 rounded-lg bg-[#1f2128] flex items-center justify-center group-hover:scale-110 transition-transform">
-          {icon}
+    <div className={`m3-card p-10 rounded-[2.5rem] border transition-all duration-700 group relative overflow-hidden ${accentColors[accent]}`}>
+      <div className="relative z-10 space-y-6">
+        <div className="flex items-center gap-5">
+          <div className="w-12 h-12 rounded-2xl bg-surface-variant/30 flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-sm border border-outline-variant/30">
+            {icon}
+          </div>
+          <span className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">{label}</span>
         </div>
-        <span className="text-[10px] font-bold text-[#8e9299] uppercase tracking-widest">{label}</span>
+        <div className="space-y-1">
+          <p className="text-4xl font-black tracking-tight text-on-surface group-hover:translate-x-2 transition-transform duration-500">{value}</p>
+          <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest opacity-40">{sub}</p>
+        </div>
       </div>
-      <p className="text-3xl font-bold font-display mb-1">{value}</p>
-      <p className="text-[10px] text-[#4e515a] font-medium">{sub}</p>
     </div>
   );
 }
 
 function ProviderMetricRow({ metric }: { metric: Metric }) {
   const getProviderIcon = (name: string) => {
-    if (name === 'ollama') return <Server className="text-orange-500" />;
-    if (name === 'gemini') return <Cpu className="text-blue-500" />;
-    if (name === 'nvidia') return <Globe className="text-green-500" />;
-    return <Search className="text-gray-500" />;
+    if (name === 'ollama') return <Server className="text-tertiary" />;
+    if (name === 'gemini') return <Cpu className="text-primary" />;
+    if (name === 'nvidia') return <Globe className="text-secondary" />;
+    return <Search className="text-on-surface-variant" />;
   };
 
   const getStatusColor = (status: string) => {
-    if (status === 'CLOSED') return 'text-green-500 bg-green-500/10';
-    if (status === 'HALF_OPEN') return 'text-yellow-500 bg-yellow-500/10';
-    return 'text-red-500 bg-red-500/10';
+    if (status === 'CLOSED') return 'text-tertiary m3-badge-success';
+    if (status === 'HALF_OPEN') return 'text-error m3-badge-warning'; // Usually warning but let's stick to theme
+    return 'text-error m3-badge-error';
   };
 
   return (
-    <div className="hardware-card p-6 flex flex-col md:flex-row items-center gap-8 bg-[#151619] border-[#2a2d35] hover:bg-[#1a1c22] transition-colors relative overflow-hidden">
-      {/* Decorative Gradient based on status */}
-      <div className={`absolute top-0 left-0 w-1 h-full ${metric.status === 'CLOSED' ? 'bg-green-500' : 'bg-red-500'}`} />
+    <motion.div 
+      layout
+      className="m3-card p-8 flex flex-col md:flex-row items-center gap-12 bg-surface hover:bg-surface-variant/10 border-outline-variant/30 transition-all duration-500 rounded-[2.5rem] border group relative overflow-hidden group/row"
+    >
+      <div className={`absolute left-0 top-0 w-1.5 h-full transition-all duration-500 ${metric.status === 'CLOSED' ? 'bg-tertiary' : 'bg-error'}`} />
 
-      <div className="flex flex-col items-center md:items-start min-w-[140px]">
-        <div className="relative mb-3">
-          <div className="w-12 h-12 rounded-xl bg-[#0a0a0b] flex items-center justify-center">
+      <div className="flex flex-col items-center md:items-start min-w-[200px] shrink-0 gap-4">
+        <div className="relative group/icon">
+          <div className="w-16 h-16 rounded-[1.5rem] bg-surface-variant/20 flex items-center justify-center border border-outline-variant/30 group-hover/icon:scale-110 transition-transform duration-500">
             {getProviderIcon(metric.provider)}
           </div>
-          <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-[#151619] ${metric.status === 'CLOSED' ? 'bg-green-500 animate-pulse' : metric.status === 'HALF_OPEN' ? 'bg-yellow-500' : 'bg-red-500'}`} />
+          <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full border-4 border-surface shadow-lg ${metric.status === 'CLOSED' ? 'bg-tertiary animate-pulse' : metric.status === 'HALF_OPEN' ? 'bg-error opacity-60' : 'bg-error'}`} />
         </div>
-        <h3 className="font-bold text-lg uppercase tracking-tight">{metric.provider}</h3>
-        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full mt-1 uppercase ${getStatusColor(metric.status)}`}>
-          {metric.status}
-        </span>
+        <div className="text-center md:text-left space-y-1">
+          <h3 className="font-black text-xl tracking-tight text-on-surface uppercase">{metric.provider}</h3>
+          <span className={`text-[9px] font-black px-4 py-1.5 rounded-full block text-center uppercase tracking-widest ${getStatusColor(metric.status)}`}>
+            STATE: {metric.status}
+          </span>
+        </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
-        <div>
-          <p className="text-[10px] font-bold text-[#4e515a] uppercase mb-1">Latency</p>
-          <div className="flex items-center gap-2">
-            <Clock className="w-3 h-3 text-blue-400" />
-            <span className="text-sm font-mono font-bold text-white">{Math.round(metric.avgLatency)}ms</span>
+      <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-10 w-full relative">
+        <div className="space-y-3">
+          <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] opacity-60">Avg Latency</p>
+          <div className="flex items-center gap-3">
+            <Clock className="w-5 h-5 text-primary opacity-40 group-hover/row:opacity-100 transition-opacity" />
+            <span className="text-lg font-mono font-black text-on-surface tracking-tighter">{Math.round(metric.avgLatency)}ms</span>
           </div>
         </div>
-        <div>
-          <p className="text-[10px] font-bold text-[#4e515a] uppercase mb-1">SLA Accuracy</p>
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-3 h-3 text-green-400" />
-            <span className="text-sm font-mono font-bold text-white">{metric.successRate.toFixed(1)}%</span>
+        <div className="space-y-3">
+          <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] opacity-60">SLA Accuracy</p>
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="w-5 h-5 text-tertiary opacity-40 group-hover/row:opacity-100 transition-opacity" />
+            <span className="text-lg font-mono font-black text-on-surface tracking-tighter">{metric.successRate.toFixed(1)}%</span>
           </div>
         </div>
-        <div>
-          <p className="text-[10px] font-bold text-[#4e515a] uppercase mb-1">Fault Count</p>
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-3 h-3 text-red-400" />
-            <span className="text-sm font-mono font-bold text-white">{metric.failures}</span>
+        <div className="space-y-3">
+          <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] opacity-60">Neural Faults</p>
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-error opacity-40 group-hover/row:opacity-100 transition-opacity" />
+            <span className="text-lg font-mono font-black text-on-surface tracking-tighter">{metric.failures}</span>
           </div>
         </div>
-        <div>
-          <p className="text-[10px] font-bold text-[#4e515a] uppercase mb-1">Reliability Rank</p>
-          <div className="flex items-center gap-1">
+        <div className="space-y-3">
+          <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] opacity-60">Reliability Rank</p>
+          <div className="flex items-center gap-1.5 h-6">
              {[...Array(5)].map((_, i) => (
-               <div key={i} className={`w-1.5 h-3 rounded-sm ${i < (metric.successRate / 20) ? 'bg-blue-500' : 'bg-[#2a2d35]'}`} />
+               <motion.div 
+                key={i} 
+                initial={{ height: 4 }}
+                animate={{ height: i < (metric.successRate / 20) ? 16 : 4 }}
+                className={`w-2.5 rounded-full ${i < (metric.successRate / 20) ? 'bg-primary shadow-[0_0_10px_rgba(var(--color-primary-rgb),0.3)]' : 'bg-outline-variant/30'}`} 
+               />
              ))}
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

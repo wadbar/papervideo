@@ -1,8 +1,7 @@
-const CACHE_NAME = 'papercreeper-cache-v1';
+const CACHE_NAME = 'papercreeper-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/src/main.tsx',
   '/manifest.json'
 ];
 
@@ -15,6 +14,11 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Never intercept API calls
+  if (event.request.url.includes('/api/')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);

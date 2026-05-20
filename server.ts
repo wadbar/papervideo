@@ -80,10 +80,28 @@ async function startServer() {
     app.use(cors());
     app.use(express.json({ limit: '50mb' }));
 
-    // Request Logger Middleware
+    // Request Logger Middleware (Filtering static assets for cleaner industrial logs)
     app.use((req: Request, res: Response, next: NextFunction) => {
-      sysLog("INFO", "ROUTER", `${req.method} ${req.url}`, { ip: req.ip });
+      const isStatic = req.url.match(/\.(tsx?|jsx?|css|svg|png|jpg|jpeg|gif|webp|woff2?|json)$/) || req.url.startsWith('/@vite') || req.url.startsWith('/src/');
+      if (!isStatic) {
+        sysLog("INFO", "ROUTER", `${req.method} ${req.url}`, { ip: req.ip });
+      }
       next();
+    });
+
+    // ==========================================
+    // AI ROUTER INJECTION
+    // ==========================================
+    app.use('/api/ai', (req, res, next) => {
+      if (req.path === '/metrics') {
+        sysLog("INFO", "TELEMETRY", `Accessing AI Metrics from ${req.ip}`);
+      }
+      next();
+    }, aiRouter);
+
+    // Health Fallback
+    app.get("/api/health", (req, res) => {
+      res.json({ status: "ok", timestamp: new Date().toISOString() });
     });
 
     // ==========================================
@@ -98,16 +116,6 @@ async function startServer() {
         sysLog("ERROR", "AUTH", "Failed to generate login token.", { error: error.message });
         res.status(500).json({ error: "Internal Auth Failure" });
       }
-    });
-
-    // ==========================================
-    // AI ROUTER INJECTION
-    // ==========================================
-    app.use('/api/ai', aiRouter);
-
-    // Health Fallback
-    app.get("/api/health", (req, res) => {
-      res.json({ status: "ok", timestamp: new Date().toISOString() });
     });
 
     // Vite middleware for development

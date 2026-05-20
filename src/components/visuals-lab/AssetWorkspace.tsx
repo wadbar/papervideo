@@ -73,9 +73,12 @@ export default function AssetWorkspace() {
 
   if (!activeScene) {
     return (
-      <div className="lg:col-span-3 hardware-card flex flex-col items-center justify-center text-[#4e515a] bg-[#0d0d0f]">
-        <Zap className="w-12 h-12 mb-4 opacity-10" />
-        <p>Select a scene from the left to start generating assets.</p>
+      <div className="h-full flex flex-col items-center justify-center text-on-surface-variant bg-surface rounded-[2rem] border border-outline-variant/30 shadow-sm transition-colors duration-300">
+        <div className="w-20 h-20 rounded-full bg-surface-variant/20 flex items-center justify-center mb-6">
+          <Zap className="w-10 h-10 opacity-30" />
+        </div>
+        <h3 className="text-xl font-bold text-on-surface mb-2">Neural Node Staging</h3>
+        <p className="max-w-[280px] text-center text-sm font-medium opacity-60">Select a scene from the sequence to begin visual synthesis.</p>
       </div>
     );
   }
@@ -350,377 +353,217 @@ export default function AssetWorkspace() {
   };
 
   return (
-    <div className="lg:col-span-3 hardware-card flex flex-col overflow-hidden bg-[#0d0d0f] relative">
+    <div className="h-full flex flex-col overflow-hidden bg-surface rounded-[2rem] border border-outline-variant/50 relative shadow-sm transition-colors duration-300">
       <AnimatePresence mode="wait">
         <motion.div 
           key={activeScene.id}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
           className="flex flex-col h-full absolute inset-0"
         >
           {/* Header Controls */}
-          <div className="p-6 border-b border-[#2a2d35] flex items-center justify-between bg-[#151619] z-10">
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-900/20 flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-blue-400" />
+          <div className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-variant/10 border-b border-outline-variant/30 z-10">
+            <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                    <Sparkles className="w-6 h-6" />
                 </div>
                 <div>
-                    <h4 className="font-bold">Scene Processor</h4>
-                    <p className="text-[10px] text-[#8e9299] uppercase tracking-widest font-mono">ID: {activeScene.id.slice(0, 8)}</p>
+                    <h4 className="text-lg font-bold text-on-surface leading-tight">Visual Node</h4>
+                    <p className="text-[10px] text-on-surface-variant uppercase tracking-[0.2em] font-mono opacity-60">UUID: {activeScene.id.slice(0, 8)}</p>
                 </div>
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-wrap gap-2 items-center">
                 {history[project.id]?.length > 0 && (
                     <button 
                         onClick={handleUndo}
-                        className="p-2 bg-[#1f2128] border border-[#2a2d35] rounded-lg text-[#8e9299] hover:text-white hover:border-orange-500/50 transition-all"
-                        title="Restore previous state (Snapshot)"
+                        className="p-2.5 bg-surface-variant/20 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
+                        title="Restore previous state"
                     >
-                        <Undo2 className="w-3.5 h-3.5" />
+                        <Undo2 className="w-4 h-4" />
                     </button>
                 )}
                 <button 
                     onClick={autoGenerateMissingVisuals}
                     disabled={!!isGenerating}
-                    className="px-3 py-2 bg-[#1f2128] border border-blue-500/30 rounded-lg text-blue-400 text-xs font-bold flex items-center gap-2 hover:bg-[#252832] transition-all"
-                    title="Automatically generate visuals for scenes that are missing them"
+                    className="m3-button-tonal py-2 px-4 flex items-center gap-2"
+                    title="Generate all missing visuals"
                 >
-                    {isGenerating === 'auto_generating_missing' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
-                    Auto Fill Vision
+                    {isGenerating === 'auto_generating_missing' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                    <span className="text-sm font-bold">Auto Fill</span>
                 </button>
                 <button 
                     onClick={applyGlobalStyle}
                     disabled={!!isGenerating}
-                    className="px-3 py-2 bg-[#1f2128] border border-blue-500/30 rounded-lg text-blue-400 text-xs font-bold flex items-center gap-2 hover:bg-[#252832] transition-all"
-                    title="Analyze whole project for visual consistency"
+                    className="m3-button-tonal py-2 px-4 flex items-center gap-2"
+                    title="Enforce visual consistency"
                 >
-                    {isGenerating === 'global_analysis' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                    Global Sync
+                    {isGenerating === 'global_analysis' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                    <span className="text-sm font-bold">Project Sync</span>
                 </button>
-                <div className="h-6 w-px bg-[#2a2d35] mx-1" />
+                
+                <div className="h-8 w-px bg-outline-variant mx-1 opacity-50" />
+                
                 <div className="relative" ref={styleDropdownRef}>
                     <button
                         onClick={() => setIsStyleDropdownOpen(!isStyleDropdownOpen)}
-                        className="bg-[#1f2128] border border-[#2a2d35] hover:border-blue-500/50 hover:bg-[#252832] rounded-lg px-3 py-2 text-xs flex items-center gap-2 transition-all font-medium text-gray-300"
+                        className="bg-secondary-container/30 text-on-secondary-container py-2 px-4 rounded-xl flex items-center gap-2 hover:bg-secondary-container/50 transition-colors text-sm font-bold"
                     >
-                        <Palette className="w-3.5 h-3.5 text-blue-400" />
+                        <Palette className="w-4 h-4" />
                         <span>{STYLES.find(s => s.id === activeScene.imageStyle)?.label || 'Cinematic'}</span>
-                        <ChevronDown className="w-3.5 h-3.5" />
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isStyleDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
-                    {isStyleDropdownOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-64 bg-[#1f2128] border border-[#2a2d35] rounded-xl shadow-2xl z-50 overflow-hidden">
-                            {STYLES.map(style => (
-                                <button
-                                    key={style.id}
-                                    onClick={() => { updateActiveScene({ imageStyle: style.id }); setIsStyleDropdownOpen(false); }}
-                                    className="w-full text-left p-3 hover:bg-[#252832] flex items-center gap-3 text-xs"
-                                >
-                                    <span>{style.icon}</span>
-                                    <span>{style.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    <AnimatePresence>
+                      {isStyleDropdownOpen && (
+                          <motion.div 
+                              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                              className="absolute right-0 top-full mt-2 w-64 bg-surface rounded-2xl shadow-2xl z-[100] border border-outline-variant overflow-hidden"
+                          >
+                              <div className="p-2 grid grid-cols-1 gap-1">
+                                {STYLES.map(style => (
+                                    <button
+                                        key={style.id}
+                                        onClick={() => { updateActiveScene({ imageStyle: style.id }); setIsStyleDropdownOpen(false); }}
+                                        className={`w-full text-left p-3 rounded-xl flex items-center gap-3 transition-colors ${activeScene.imageStyle === style.id ? 'bg-primary/10 text-primary' : 'hover:bg-surface-variant/50 text-on-surface-variant hover:text-on-surface'}`}
+                                    >
+                                        <span className="text-xl">{style.icon}</span>
+                                        <div className="flex flex-col">
+                                          <span className="text-sm font-bold">{style.label}</span>
+                                          <span className="text-[10px] opacity-60 line-clamp-1">{style.desc}</span>
+                                        </div>
+                                    </button>
+                                ))}
+                              </div>
+                          </motion.div>
+                      )}
+                    </AnimatePresence>
                 </div>
-                <button onClick={generateImage} disabled={!!isGenerating} className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-bold shadow-lg shadow-blue-900/20 active:scale-95 transition-all text-white">
-                    {isGenerating === activeScene.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Gen Image'}
+                
+                <button 
+                  onClick={generateImage} 
+                  disabled={!!isGenerating} 
+                  className="m3-button-primary py-2 px-6 flex items-center gap-2 shadow-lg shadow-primary/20"
+                >
+                    {isGenerating === activeScene.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    <span className="text-sm font-bold uppercase tracking-widest leading-none pt-0.5">Generate</span>
                 </button>
             </div>
           </div>
 
-          {/* Quick Scene Params Row */}
-          <div className="px-6 py-4 flex items-center justify-between gap-4 bg-[#1a1b1e] border-b border-[#2a2d35]">
-              <div className="flex items-center gap-6">
-                <div className="flex flex-col gap-1">
-                    <label className="text-[9px] font-bold text-[#4e515a] uppercase tracking-widest">Motion Profile</label>
-                    <select 
-                        value={activeScene.motionType || 'Dynamic'}
-                        onChange={(e) => updateActiveScene({ motionType: e.target.value })}
-                        className="bg-[#0d0d0f] border border-[#2a2d35] rounded px-2 py-1 text-[10px] text-blue-400 font-mono outline-none focus:border-blue-500"
-                    >
-                        {['Dynamic', 'Orbit', 'Zoom In', 'Pan Left', 'Slow Pan', 'Static'].map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                    <label className="text-[9px] font-bold text-[#4e515a] uppercase tracking-widest flex items-center justify-between min-w-[100px]">
-                        <span>Transition</span>
-                        <button 
-                            onClick={() => autoSuggestTransition(project.scenes.findIndex(s => s.id === activeScene.id))}
-                            disabled={isSuggestingTransition || project.scenes.findIndex(s => s.id === activeScene.id) >= project.scenes.length - 1}
-                            className="text-blue-400 hover:text-blue-300 disabled:opacity-30 disabled:hover:text-blue-400"
-                            title="Auto suggest optimal transition to next scene"
-                        >
-                            {isSuggestingTransition ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}
-                        </button>
-                    </label>
-                    <div className="relative" ref={transitionDropdownRef}>
-                        <button
-                            onClick={() => setIsTransitionDropdownOpen(!isTransitionDropdownOpen)}
-                            className="bg-[#0d0d0f] border border-[#2a2d35] rounded px-2 py-[2.5px] text-[10px] text-blue-400 font-mono outline-none focus:border-blue-500 flex items-center gap-2 w-full justify-between"
-                        >
-                            <ArrowRightLeft className="w-3 h-3" />
-                            <span>{activeScene.transition || 'Cut'}</span>
-                        </button>
-                        {isTransitionDropdownOpen && (
-                            <div className="absolute left-0 top-full mt-2 w-32 bg-[#1f2128] border border-[#2a2d35] rounded-lg shadow-2xl z-50 overflow-hidden">
-                                {TRANSITIONS.map(t => (
-                                    <button
-                                        key={t.id}
-                                        onClick={() => { updateActiveScene({ transition: t.label }); setIsTransitionDropdownOpen(false); }}
-                                        className={`w-full text-left px-3 py-2 hover:bg-[#252832] text-[10px] transition-colors flex items-center justify-between ${activeScene.transition === t.label ? 'text-blue-400 bg-blue-400/5' : 'text-gray-300'}`}
-                                    >
-                                        <span>{t.label}</span>
-                                        <span className="text-[8px] opacity-30 font-mono">{t.icon}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-                <div className="flex flex-col gap-1">
-                    <label className="text-[9px] font-bold text-[#4e515a] uppercase tracking-widest">Intensity</label>
-                    <input 
-                        type="range" min="1" max="10" 
-                        value={activeScene.motionIntensity || 5}
-                        onChange={(e) => updateActiveScene({ motionIntensity: parseInt(e.target.value) })}
-                        className="w-24 accent-blue-500"
-                    />
-                </div>
-              </div>
-              <button 
-                onClick={generateVideo}
-                disabled={!!isGenerating || !activeScene.imageUrl}
-                className="flex items-center gap-2 px-3 py-1.5 bg-[#1f2128] border border-[#2a2d35] hover:border-blue-500/50 rounded-lg text-xs font-bold text-gray-300 transition-all disabled:opacity-30"
-              >
-                  {isGenerating?.includes('video') ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Video className="w-3.5 h-3.5" />}
-                  <span>Gen Video</span>
-              </button>
-          </div>
-
-          <div className="flex-1 p-8 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="flex-1 p-6 md:p-10 flex flex-col gap-10 overflow-y-auto custom-scrollbar bg-surface/50">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 {/* Inputs Column */}
-                <div className="space-y-4">
-                    <div className="p-4 bg-[#151619] border border-[#2a2d35] rounded-xl relative group">
-                        <label className="text-[10px] font-bold text-[#4e515a] uppercase mb-2 block tracking-widest flex items-center justify-between">
-                            <span>Visual Concept</span>
+                <div className="space-y-8">
+                    {/* Visual Concept Block */}
+                    <div className="bg-surface-variant/10 rounded-3xl p-6 border border-outline-variant/30 flex flex-col gap-4">
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest pl-1">
+                                Visual Architecture
+                            </label>
                             <div className="flex items-center gap-3">
                                 <button 
                                     onClick={generateVariations}
                                     disabled={isGeneratingVariations}
-                                    className="text-[9px] text-blue-400 font-bold uppercase hover:text-blue-300 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                    className="text-[11px] font-bold text-primary flex items-center gap-1.5 hover:bg-primary/10 px-3 py-1.5 rounded-full transition-colors"
                                 >
-                                    {isGeneratingVariations ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}
+                                    {isGeneratingVariations ? <Loader2 className="w-3 h-3 animate-spin"/> : <RefreshCw className="w-3 h-3"/>}
                                     Variations
                                 </button>
                                 <button 
                                     onClick={expandDescription}
                                     disabled={isRefining}
-                                    className="text-[9px] text-purple-400 font-bold uppercase hover:text-purple-300 transition-colors flex items-center gap-1 disabled:opacity-50"
-                                    title="Enhance description with cinematic lighting and camera details"
+                                    className="text-[11px] font-bold text-tertiary flex items-center gap-1.5 hover:bg-tertiary/10 px-3 py-1.5 rounded-full transition-colors"
                                 >
                                     {isRefining ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}
-                                    AI Refine
+                                    Refine Logic
                                 </button>
                             </div>
-                        </label>
+                        </div>
                         <textarea 
                             value={activeScene.description}
                             onChange={(e) => updateActiveScene({ description: e.target.value })}
-                            className="w-full h-32 bg-black/40 border border-[#2a2d35] rounded-lg p-3 text-sm focus:border-blue-400 outline-none resize-none font-medium text-gray-400 leading-relaxed italic"
+                            className="w-full h-40 bg-surface/40 border border-outline-variant/50 rounded-2xl p-4 text-sm font-medium text-on-surface placeholder:text-on-surface-variant/40 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none resize-none leading-relaxed transition-all"
+                            placeholder="Describe the visual essence..."
                         />
                         
-                        {visualVariations.length > 0 && (
-                            <div className="mt-4 space-y-2">
-                                <span className="text-[10px] font-bold text-[#4e515a] uppercase tracking-widest block mb-2">Generated Variations</span>
-                                {visualVariations.map((v, i) => (
-                                    <button 
-                                        key={i}
-                                        onClick={() => updateActiveScene({ description: v })}
-                                        className="w-full text-left p-3 text-xs bg-[#1f2128]/50 border border-[#2a2d35]/50 rounded-lg hover:border-blue-500/50 hover:bg-[#252832] transition-colors leading-relaxed text-gray-300 group"
-                                    >
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="text-[10px] font-bold text-blue-400 uppercase">Option {i+1}</span>
-                                            <span className="text-[9px] opacity-0 group-hover:opacity-100 transition-opacity font-bold">CLICK TO APPLY</span>
-                                        </div>
-                                        {v}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                        <AnimatePresence>
+                          {visualVariations.length > 0 && (
+                              <motion.div 
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="space-y-3 mt-4"
+                              >
+                                  <span className="text-[10px] font-black text-on-surface-variant/70 uppercase tracking-widest pl-1">Generated Variations</span>
+                                  {visualVariations.map((v, i) => (
+                                      <button 
+                                          key={i}
+                                          onClick={() => { updateActiveScene({ description: v }); setVisualVariations([]); }}
+                                          className="w-full text-left p-4 bg-surface/60 border border-outline-variant/30 rounded-2xl hover:border-primary/50 hover:bg-primary/5 transition-all text-sm leading-relaxed text-on-surface-variant group"
+                                      >
+                                          <div className="flex items-center justify-between mb-2">
+                                              <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Option {i+1}</span>
+                                              <span className="text-[9px] font-black text-primary opacity-0 group-hover:opacity-100 transition-opacity">USE DATA</span>
+                                          </div>
+                                          {v}
+                                      </button>
+                                  ))}
+                              </motion.div>
+                          )}
+                        </AnimatePresence>
                     </div>
-                    <div className="p-4 bg-[#0d0d0f] border border-[#2a2d35] rounded-xl">
-                        <label className="text-[10px] font-bold text-[#4e515a] uppercase mb-2 flex items-center justify-between tracking-widest">
-                            <span>Narration Match</span>
+
+                    {/* Metadata Suggestions Block */}
+                    <div className="bg-surface-variant/5 rounded-3xl p-6 border border-outline-variant/20">
+                        <div className="flex items-center justify-between mb-4">
+                            <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest pl-1">
+                                Metadata Analysis
+                            </label>
                             <button 
                                 onClick={analyzeMetadata}
                                 disabled={isAnalyzingMetadata}
-                                className="text-[9px] text-green-400 font-bold uppercase hover:text-green-300 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                className="text-[11px] font-bold text-secondary-container hover:bg-secondary-container/20 px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5"
                             >
-                                {isAnalyzingMetadata ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}
-                                Analyze Metadata
-                            </button>
-                        </label>
-                        <p className="text-xs text-[#8e9299] leading-relaxed line-clamp-4 mb-2">"{activeScene.narrationText || 'No narration for this scene.'}"</p>
-                        
-                        {activeScene.metadataSuggestions && (
-                            <div className="mt-3 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                                <p className="text-[10px] font-bold text-green-400 uppercase mb-1">AI Suggestions</p>
-                                <p className="text-xs text-green-100/70 whitespace-pre-wrap">{activeScene.metadataSuggestions}</p>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="p-4 bg-[#151619] border border-[#2a2d35] rounded-xl space-y-4">
-                        <div className="flex items-center justify-between mb-1">
-                            <label className="text-[10px] font-bold text-[#4e515a] uppercase block tracking-widest flex items-center gap-2">
-                                <Sliders className="w-3 h-3 text-blue-400" />
-                                Post-Processing Module
-                            </label>
-                            <button 
-                                onClick={() => updateActiveScene({ postProcessing: { brightness: 100, contrast: 100, saturation: 100, vignette: 0, colorGrade: 'Original', temperature: 50, grain: 0, chromaticAberration: 0, blurFx: 0 } })}
-                                className="text-[9px] font-bold text-[#4e515a] hover:text-blue-400 transition-colors uppercase tracking-tighter"
-                            >
-                                [Reset_Nodes]
+                                {isAnalyzingMetadata ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sliders className="w-3 h-3"/>}
+                                Analyze
                             </button>
                         </div>
-                        
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-5">
-                            <div className="space-y-1.5 col-span-2 pb-2 border-b border-[#2a2d35]/30">
-                                <label className="text-[9px] font-bold text-[#4e515a] uppercase flex items-center justify-between">
-                                    <span>Color Grading LUT</span>
-                                    <span className="text-blue-400 font-mono text-[8px]">{activeScene.postProcessing?.colorGrade || 'Original'}</span>
-                                </label>
-                                <select 
-                                    value={activeScene.postProcessing?.colorGrade || 'Original'}
-                                    onChange={(e) => updatePostProcessing({ colorGrade: e.target.value })}
-                                    className="w-full bg-[#0d0d0f] border border-[#2a2d35] rounded-lg px-3 py-2.5 text-[10px] text-gray-300 outline-none focus:border-blue-500 transition-all font-mono"
-                                >
-                                    {COLOR_GRADES.map(g => <option key={g.name} value={g.name}>{g.name}</option>)}
-                                </select>
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-[9px] font-bold text-[#4e515a] uppercase flex items-center justify-between">
-                                    <span>Brightness</span>
-                                    <span className="text-blue-400 font-mono">{activeScene.postProcessing?.brightness || 100}%</span>
-                                </label>
-                                <input 
-                                    type="range" min="50" max="150" 
-                                    value={activeScene.postProcessing?.brightness || 100}
-                                    onChange={(e) => updatePostProcessing({ brightness: parseInt(e.target.value) })}
-                                    className="w-full accent-blue-500 h-1 bg-white/5 rounded-full appearance-none cursor-pointer"
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[9px] font-bold text-[#4e515a] uppercase flex items-center justify-between">
-                                    <span>Contrast</span>
-                                    <span className="text-blue-400 font-mono">{activeScene.postProcessing?.contrast || 100}%</span>
-                                </label>
-                                <input 
-                                    type="range" min="50" max="150" 
-                                    value={activeScene.postProcessing?.contrast || 100}
-                                    onChange={(e) => updatePostProcessing({ contrast: parseInt(e.target.value) })}
-                                    className="w-full accent-blue-500 h-1 bg-white/5 rounded-full appearance-none cursor-pointer"
-                                />
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-[9px] font-bold text-[#4e515a] uppercase flex items-center justify-between">
-                                    <span>Saturation</span>
-                                    <span className="text-blue-400 font-mono">{activeScene.postProcessing?.saturation || 100}%</span>
-                                </label>
-                                <input 
-                                    type="range" min="0" max="200" 
-                                    value={activeScene.postProcessing?.saturation || 100}
-                                    onChange={(e) => updatePostProcessing({ saturation: parseInt(e.target.value) })}
-                                    className="w-full accent-blue-500 h-1 bg-white/5 rounded-full appearance-none cursor-pointer"
-                                />
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-[9px] font-bold text-[#4e515a] uppercase flex items-center justify-between">
-                                    <span>Temperature</span>
-                                    <span className="text-blue-400 font-mono">{activeScene.postProcessing?.temperature || 50}</span>
-                                </label>
-                                <input 
-                                    type="range" min="0" max="100" 
-                                    value={activeScene.postProcessing?.temperature ?? 50}
-                                    onChange={(e) => updatePostProcessing({ temperature: parseInt(e.target.value) })}
-                                    className="w-full h-1 bg-gradient-to-r from-blue-500 via-gray-400 to-orange-500 rounded-full appearance-none cursor-pointer"
-                                />
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-[9px] font-bold text-[#4e515a] uppercase flex items-center justify-between">
-                                    <span>Vignette FX</span>
-                                    <span className="text-blue-400 font-mono">{(activeScene.postProcessing?.vignette || 0).toFixed(1)}</span>
-                                </label>
-                                <input 
-                                    type="range" min="0" max="1" step="0.1"
-                                    value={activeScene.postProcessing?.vignette || 0}
-                                    onChange={(e) => updatePostProcessing({ vignette: parseFloat(e.target.value) })}
-                                    className="w-full accent-blue-500 h-1 bg-white/5 rounded-full appearance-none cursor-pointer"
-                                />
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-[9px] font-bold text-[#4e515a] uppercase flex items-center justify-between">
-                                    <span>Film Grain</span>
-                                    <span className="text-blue-400 font-mono">{(activeScene.postProcessing?.grain || 0).toFixed(1)}</span>
-                                </label>
-                                <input 
-                                    type="range" min="0" max="1" step="0.1"
-                                    value={activeScene.postProcessing?.grain || 0}
-                                    onChange={(e) => updatePostProcessing({ grain: parseFloat(e.target.value) })}
-                                    className="w-full accent-gray-400 h-1 bg-white/5 rounded-full appearance-none cursor-pointer"
-                                />
-                            </div>
-
-                            <div className="space-y-1.5 pt-2 border-t border-[#2a2d35]/30">
-                                <label className="text-[9px] font-bold text-[#4e515a] uppercase flex items-center justify-between">
-                                    <span>Chromatic Aberration</span>
-                                    <span className="text-blue-400 font-mono">{(activeScene.postProcessing?.chromaticAberration || 0).toFixed(1)}</span>
-                                </label>
-                                <input 
-                                    type="range" min="0" max="1" step="0.1"
-                                    value={activeScene.postProcessing?.chromaticAberration || 0}
-                                    onChange={(e) => updatePostProcessing({ chromaticAberration: parseFloat(e.target.value) })}
-                                    className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-purple-500"
-                                />
-                            </div>
-
-                            <div className="space-y-1.5 pt-2 border-t border-[#2a2d35]/30">
-                                <label className="text-[9px] font-bold text-[#4e515a] uppercase flex items-center justify-between">
-                                    <span>Gaussian Blur</span>
-                                    <span className="text-blue-400 font-mono">{(activeScene.postProcessing?.blurFx || 0).toFixed(1)}px</span>
-                                </label>
-                                <input 
-                                    type="range" min="0" max="10" step="0.5"
-                                    value={activeScene.postProcessing?.blurFx || 0}
-                                    onChange={(e) => updatePostProcessing({ blurFx: parseFloat(e.target.value) })}
-                                    className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-blue-500"
-                                />
-                            </div>
+                        <div className="p-4 bg-surface/30 rounded-2xl italic text-sm text-on-surface-variant leading-relaxed opacity-80">
+                            "{activeScene.narrationText || 'No narration bound to this node.'}"
                         </div>
+                        
+                        <AnimatePresence>
+                          {activeScene.metadataSuggestions && (
+                              <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="mt-4 p-4 bg-secondary-container/10 border border-secondary-container/20 rounded-2xl"
+                              >
+                                  <p className="text-[10px] font-black text-secondary-container uppercase tracking-widest mb-2">AI Node Suggestion</p>
+                                  <p className="text-sm font-medium text-on-secondary-container/80 whitespace-pre-wrap leading-relaxed">{activeScene.metadataSuggestions}</p>
+                              </motion.div>
+                          )}
+                        </AnimatePresence>
                     </div>
                 </div>
 
-                {/* Preview Column */}
-                <div className="flex flex-col gap-4">
-                    <div className="relative group">
+                {/* Preview & Effects Column */}
+                <div className="space-y-8">
+                    {/* Visual Stage */}
+                    <div className="relative group rounded-3xl overflow-hidden bg-black aspect-video shadow-2xl border border-outline-variant/30">
                         {activeScene.videoUrl ? (
                             <VideoPreview url={activeScene.videoUrl} poster={activeScene.imageUrl} effects={activeScene.postProcessing} />
                         ) : activeScene.imageUrl ? (
-                            <div className="aspect-video bg-[#050506] rounded-xl border-2 border-[#1f2128] overflow-hidden relative group shadow-2xl">
+                            <div className="w-full h-full relative overflow-hidden group">
                                 <img 
                                     src={activeScene.imageUrl} 
-                                    className="w-full h-full object-cover transition-all duration-500" 
+                                    className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-105" 
                                     referrerPolicy="no-referrer" 
                                     style={getPreviewFilter()}
                                 />
-                                {/* Grain Overlay on Static */}
+                                {/* Overlay Effects */}
                                 {activeScene.postProcessing?.grain && activeScene.postProcessing.grain > 0 && (
                                     <div 
                                         className="absolute inset-0 pointer-events-none z-10 opacity-[0.03] mix-blend-overlay"
@@ -730,90 +573,254 @@ export default function AssetWorkspace() {
                                         }}
                                     />
                                 )}
-                                {/* Vignette on Image */}
                                 {activeScene.postProcessing?.vignette && activeScene.postProcessing.vignette > 0 && (
                                     <div 
                                         className="absolute inset-0 pointer-events-none transition-all duration-500"
                                         style={getVignetteStyle(activeScene.postProcessing.vignette)}
                                     />
                                 )}
-                                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                    <button className="p-2 bg-black/60 rounded-lg hover:bg-black/90 text-white">
-                                        <Maximize2 className="w-4 h-4" />
+                                <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                    <button className="p-3 bg-surface/80 backdrop-blur-md rounded-2xl text-on-surface hover:bg-surface transition-colors shadow-lg">
+                                        <Maximize2 className="w-5 h-5" />
                                     </button>
                                 </div>
                             </div>
                         ) : (
-                            <div className="aspect-video bg-[#050506] rounded-xl border-2 border-[#1f2128] overflow-hidden relative group shadow-2xl flex flex-col items-center justify-center text-[#2a2d35]">
-                                <ImageIcon className="w-12 h-12 mb-2 opacity-10" />
-                                <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Awaiting Generation</span>
+                            <div className="w-full h-full bg-surface-variant/5 flex flex-col items-center justify-center text-outline text-on-surface-variant/30">
+                                <ImageIcon className="w-20 h-20 mb-4 opacity-10" />
+                                <span className="text-xs font-black uppercase tracking-[0.4em]">Node Waiting for Data</span>
                             </div>
                         )}
-                        {isGenerating === activeScene.id || isGenerating?.includes('video') ? (
-                            <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center z-20">
-                                <motion.div 
-                                    animate={{ rotate: 360 }}
-                                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                                    className="relative w-16 h-16 flex items-center justify-center"
-                                >
-                                    <svg className="w-full h-full">
-                                        <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="2" fill="transparent" className="text-[#1f2128]" />
-                                        <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="2" fill="transparent" className="text-blue-500" strokeDasharray={175} strokeDashoffset={100} />
-                                    </svg>
-                                    <Sparkles className="absolute w-6 h-6 text-blue-400 animate-pulse" />
-                                </motion.div>
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mt-4 animate-pulse">Synthesis in Progress</span>
+                        
+                        <AnimatePresence>
+                          {isGenerating === activeScene.id || isGenerating?.includes('video') ? (
+                              <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 bg-surface/90 backdrop-blur-xl flex flex-col items-center justify-center z-50 p-10 text-center"
+                              >
+                                  <div className="relative w-24 h-24 flex items-center justify-center">
+                                      <motion.div 
+                                        animate={{ rotate: 360 }}
+                                        transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+                                        className="absolute inset-0 rounded-full border-4 border-primary/10 border-t-primary"
+                                      />
+                                      <Sparkles className="w-10 h-10 text-primary animate-pulse" />
+                                  </div>
+                                  <h3 className="mt-8 text-xl font-bold text-on-surface">Synthesizing Visual Nodes</h3>
+                                  <p className="mt-2 text-sm text-on-surface-variant font-medium opacity-60 uppercase tracking-widest">Optimizing AI Weights</p>
+                              </motion.div>
+                          ) : null}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Post-Processing Panel */}
+                    <div className="bg-surface-variant/5 rounded-[2.5rem] p-8 border border-outline-variant/20 relative group overflow-hidden transition-colors hover:bg-surface-variant/10">
+                        <div className="flex items-center justify-between mb-10">
+                            <label className="text-xs font-black text-on-surface uppercase tracking-[0.2em] flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                  <Sliders className="w-4 h-4" />
+                                </div>
+                                Effect Matrix
+                            </label>
+                            <button 
+                                onClick={() => updateActiveScene({ postProcessing: { brightness: 100, contrast: 100, saturation: 100, vignette: 0, colorGrade: 'Original', temperature: 50, grain: 0, chromaticAberration: 0, blurFx: 0 } })}
+                                className="text-[10px] font-black text-on-surface-variant hover:text-primary transition-colors uppercase tracking-widest bg-surface/40 px-4 py-2 rounded-full border border-outline-variant/30"
+                            >
+                                Reset Nodes
+                            </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                            {/* Color Grade - Full Width Row */}
+                            <div className="md:col-span-2 space-y-3 pb-4 border-b border-outline-variant/30">
+                                <label className="text-[11px] font-black text-on-surface-variant uppercase tracking-widest pl-1 flex items-center justify-between">
+                                    <span>LUT Gradient Processor</span>
+                                    <span className="text-primary font-mono bg-primary/5 px-2 py-0.5 rounded italic">{activeScene.postProcessing?.colorGrade || 'Original'}</span>
+                                </label>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                  {COLOR_GRADES.slice(0, 8).map(grade => (
+                                    <button 
+                                      key={grade.name}
+                                      onClick={() => updatePostProcessing({ colorGrade: grade.name })}
+                                      className={`px-3 py-2 rounded-xl text-[10px] font-bold transition-all border ${activeScene.postProcessing?.colorGrade === grade.name ? 'm3-button-primary border-primary' : 'bg-surface/50 border-outline-variant/50 hover:bg-surface-variant/30 text-on-surface-variant'}`}
+                                    >
+                                      {grade.name}
+                                    </button>
+                                  ))}
+                                </div>
                             </div>
-                        ) : null}
+
+                            {/* Sliders UI - Responsive Grid */}
+                            <EffectSlider 
+                              label="Luminance" 
+                              value={activeScene.postProcessing?.brightness ?? 100} 
+                              min={50} max={150} 
+                              onChange={(v) => updatePostProcessing({ brightness: v })} 
+                            />
+                            <EffectSlider 
+                              label="Dynamic Range" 
+                              value={activeScene.postProcessing?.contrast ?? 100} 
+                              min={50} max={150} 
+                              onChange={(v) => updatePostProcessing({ contrast: v })} 
+                            />
+                            <EffectSlider 
+                              label="Chroma" 
+                              value={activeScene.postProcessing?.saturation ?? 100} 
+                              min={0} max={200} 
+                              onChange={(v) => updatePostProcessing({ saturation: v })} 
+                            />
+                            <EffectSlider 
+                              label="Kelvin Shift" 
+                              value={activeScene.postProcessing?.temperature ?? 50} 
+                              min={0} max={100} 
+                              onChange={(v) => updatePostProcessing({ temperature: v })}
+                              isTemp
+                            />
+                            <EffectSlider 
+                              label="Vignette" 
+                              value={activeScene.postProcessing?.vignette ?? 0} 
+                              min={0} max={1} step={0.1}
+                              onChange={(v) => updatePostProcessing({ vignette: v })} 
+                            />
+                            <EffectSlider 
+                              label="Grain Density" 
+                              value={activeScene.postProcessing?.grain ?? 0} 
+                              min={0} max={1} step={0.1}
+                              onChange={(v) => updatePostProcessing({ grain: v })} 
+                            />
+                            <EffectSlider 
+                                label="Chromatic Aberration" 
+                                value={activeScene.postProcessing?.chromaticAberration ?? 0} 
+                                min={0} max={1} step={0.1}
+                                onChange={(v) => updatePostProcessing({ chromaticAberration: v })} 
+                            />
+                            <EffectSlider 
+                                label="Bokéh Blur" 
+                                value={activeScene.postProcessing?.blurFx ?? 0} 
+                                min={0} max={10} step={0.5}
+                                onChange={(v) => updatePostProcessing({ blurFx: v })} 
+                            />
+                        </div>
+                    </div>
+
+                    {/* Quick Motion Controls - Card Layout */}
+                    <div className="bg-primary-container/10 p-8 rounded-[2.5rem] border border-primary/20 grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-black text-on-primary-container uppercase tracking-widest pl-1">Kinetic Profile</label>
+                            <select 
+                                value={activeScene.motionType || 'Dynamic'}
+                                onChange={(e) => updateActiveScene({ motionType: e.target.value })}
+                                className="w-full bg-surface/50 border border-primary/20 rounded-2xl px-4 py-3 text-sm font-bold text-primary outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                            >
+                                {['Dynamic', 'Orbit', 'Zoom In', 'Pan Left', 'Slow Pan', 'Static'].map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between pl-1">
+                              <label className="text-[10px] font-black text-on-primary-container uppercase tracking-widest">Temporal Junction</label>
+                              <button 
+                                  onClick={() => autoSuggestTransition(project.scenes.findIndex(s => s.id === activeScene.id))}
+                                  disabled={isSuggestingTransition || project.scenes.findIndex(s => s.id === activeScene.id) >= project.scenes.length - 1}
+                                  className="text-primary hover:text-primary/70 transition-colors"
+                              >
+                                  {isSuggestingTransition ? <Loader2 className="w-4 h-4 animate-spin"/> : <Sparkles className="w-4 h-4"/>}
+                              </button>
+                            </div>
+                            <div className="relative">
+                              <select 
+                                  value={activeScene.transition || 'Cut'}
+                                  onChange={(e) => updateActiveScene({ transition: e.target.value })}
+                                  className="w-full bg-surface/50 border border-primary/20 rounded-2xl px-4 py-3 text-sm font-bold text-primary outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                              >
+                                  {TRANSITIONS.map(t => <option key={t.id} value={t.label}>{t.label}</option>)}
+                              </select>
+                              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+                                <ChevronDown className="w-4 h-4" />
+                              </div>
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-black text-on-primary-container uppercase tracking-widest pl-1">Motion Intensity</label>
+                            <div className="flex items-center gap-4 py-2">
+                              <input 
+                                  type="range" min="1" max="10" 
+                                  value={activeScene.motionIntensity || 5}
+                                  onChange={(e) => updateActiveScene({ motionIntensity: parseInt(e.target.value) })}
+                                  className="flex-1 accent-primary h-1.5 bg-primary/20 rounded-full appearance-none cursor-pointer"
+                              />
+                              <span className="text-sm font-mono font-bold text-primary w-6">{activeScene.motionIntensity || 5}</span>
+                            </div>
+                        </div>
+                        <div className="md:col-span-3 pt-4 flex justify-end">
+                            <button 
+                                onClick={generateVideo}
+                                disabled={!!isGenerating || !activeScene.imageUrl}
+                                className="m3-button-primary py-3 px-8 flex items-center gap-3 shadow-lg shadow-primary/20"
+                            >
+                                {isGenerating?.includes('video') ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                                <span className="font-bold text-sm tracking-widest uppercase">Synthesize Motion</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Timeline Strip */}
-            <div className="mt-auto border-t border-[#2a2d35] pt-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h5 className="text-[10px] uppercase font-bold text-[#4e515a] tracking-widest">Project Timeline Overview</h5>
-                    <div className="flex gap-2">
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                            <span className="text-[8px] text-[#4e515a] font-bold">READY</span>
+            {/* Timeline Strip - Advanced Node View */}
+            <div className="mt-auto pt-8 border-t border-outline-variant/30">
+                <div className="flex items-center justify-between mb-6 px-2">
+                    <div className="flex items-center gap-4">
+                        <h5 className="text-xs font-black uppercase text-on-surface-variant tracking-[0.3em]">Temporal Node Sequence</h5>
+                        <div className="flex gap-1.5 grayscale opacity-30">
+                          {[...Array(4)].map((_, i) => <div key={i} className="w-1 h-1 rounded-full bg-on-surface" />)}
                         </div>
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                            <span className="text-[8px] text-[#4e515a] font-bold">GEN_VIDEO</span>
+                    </div>
+                    <div className="flex gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-primary" />
+                            <span className="text-[9px] text-on-surface-variant font-black tracking-widest">SYNC_OK</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-secondary-container" />
+                            <span className="text-[9px] text-on-surface-variant font-black tracking-widest">DRAFTING</span>
                         </div>
                     </div>
                 </div>
-                <div className="flex gap-2 overflow-x-auto pb-4 custom-scrollbar items-center px-2">
+                <div className="flex gap-4 overflow-x-auto pb-8 custom-scrollbar items-center px-4 -mx-4">
                     {project.scenes.map((s, idx) => {
                         const isDragging = draggedIdx === idx;
                         const isDropTarget = dropTargetIdx === idx;
+                        const isActive = activeScene.id === s.id;
                         
                         return (
                             <React.Fragment key={s.id}>
-                                {/* Drop Indicator BEFORE */}
+                                {/* Drop Indicators & Inter-Node Logistics */}
                                 {isDropTarget && dropIndicatorPos === 'before' && draggedIdx !== idx && draggedIdx !== idx - 1 && (
-                                    <div className="w-1 h-20 bg-blue-500 rounded-full animate-pulse mx-1 flex-shrink-0" />
+                                    <div className="w-1.5 h-24 bg-primary rounded-full animate-pulse mx-2 flex-shrink-0 shadow-[0_0_15px_rgba(var(--primary),0.5)]" />
                                 )}
 
-                                {/* Transition Indicator BEFORE scene (except first) */}
                                 {idx > 0 && !(isDropTarget && dropIndicatorPos === 'before') && (
-                                    <div className="flex flex-col items-center gap-1 min-w-[40px] relative" ref={activeTimelineTransitionIdx === idx ? timelineTransitionRef : null}>
+                                    <div className="flex flex-col items-center gap-2 min-w-[50px] relative" ref={activeTimelineTransitionIdx === idx ? timelineTransitionRef : null}>
                                         <button 
                                             onClick={() => setActiveTimelineTransitionIdx(activeTimelineTransitionIdx === idx ? null : idx)}
-                                            className={`w-8 h-8 rounded-full flex items-center justify-center group/trans relative transition-all ${
+                                            className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 relative ${
                                                 activeTimelineTransitionIdx === idx 
-                                                    ? 'bg-blue-600 border-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.4)]' 
-                                                    : 'bg-[#151619] border border-[#2a2d35] hover:border-blue-500/50'
+                                                    ? 'bg-primary text-on-primary shadow-lg shadow-primary/30 z-50' 
+                                                    : 'bg-surface-variant/20 border border-outline-variant/30 text-on-surface-variant hover:border-primary/50 hover:bg-primary/10'
                                             }`}
                                         >
-                                            <ArrowRightLeft className={`w-3 h-3 ${activeTimelineTransitionIdx === idx ? 'text-white' : 'text-[#4e515a] group-hover/trans:text-blue-400'}`} />
-                                            
-                                            {!activeTimelineTransitionIdx && (
-                                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover/trans:opacity-100 transition-opacity bg-black/90 px-1.5 py-0.5 rounded text-[8px] font-mono text-blue-400 border border-blue-500/30 whitespace-nowrap z-30">
-                                                    {s.transition || 'Cut'}
-                                                </div>
+                                            <ArrowRightLeft className="w-4 h-4" />
+                                            <AnimatePresence>
+                                            {activeTimelineTransitionIdx !== idx && (
+                                              <motion.div 
+                                                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                                className="absolute -top-8 left-1/2 -translate-x-1/2 p-2 bg-surface border border-outline-variant rounded-xl hidden group-hover:block"
+                                              >
+                                                <span className="text-[8px] font-bold text-primary font-mono whitespace-nowrap uppercase tracking-widest">{s.transition || 'Cut'}</span>
+                                              </motion.div>
                                             )}
+                                            </AnimatePresence>
                                         </button>
 
                                         <AnimatePresence>
@@ -822,12 +829,12 @@ export default function AssetWorkspace() {
                                                     initial={{ opacity: 0, scale: 0.9, y: 10 }}
                                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                                     exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                                                    className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 w-36 bg-[#1f2128] border border-blue-500/30 rounded-xl shadow-2xl z-[100] overflow-hidden"
+                                                    className="absolute bottom-full mb-6 left-1/2 -translate-x-1/2 w-48 bg-surface rounded-3xl shadow-2xl z-[100] border border-outline-variant overflow-hidden"
                                                 >
-                                                    <div className="p-2 border-b border-[#2a2d35] bg-[#151619]">
-                                                        <span className="text-[8px] font-bold text-[#4e515a] uppercase tracking-widest pl-1">Junction Node {idx}</span>
+                                                    <div className="p-4 border-b border-outline-variant/30 bg-surface-variant/10">
+                                                        <span className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Junction Node {idx}</span>
                                                     </div>
-                                                    <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                                    <div className="max-h-60 overflow-y-auto custom-scrollbar p-2 grid grid-cols-1 gap-1">
                                                         {TRANSITIONS.map(t => (
                                                             <button
                                                                 key={t.id}
@@ -838,13 +845,13 @@ export default function AssetWorkspace() {
                                                                     onUpdate({ ...project, scenes: newScenes });
                                                                     setActiveTimelineTransitionIdx(null);
                                                                 }}
-                                                                className={`w-full text-left px-3 py-2 hover:bg-blue-600/10 flex items-center justify-between group/item transition-colors ${s.transition === t.label ? 'bg-blue-600/5' : ''}`}
+                                                                className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between ${s.transition === t.label ? 'bg-primary/10 text-primary' : 'hover:bg-surface-variant/50 text-on-surface-variant'}`}
                                                             >
                                                                 <div className="flex flex-col">
-                                                                    <span className={`text-[10px] font-bold ${s.transition === t.label ? 'text-blue-400' : 'text-gray-300 group-hover/item:text-white'}`}>{t.label}</span>
-                                                                    <span className="text-[7px] text-[#4e515a] font-mono">{t.icon}</span>
+                                                                    <span className="text-xs font-bold">{t.label}</span>
+                                                                    <span className="text-[8px] opacity-40 font-mono italic">{t.icon}</span>
                                                                 </div>
-                                                                {s.transition === t.label && <div className="w-1 h-1 rounded-full bg-blue-400" />}
+                                                                {s.transition === t.label && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
                                                             </button>
                                                         ))}
                                                     </div>
@@ -854,7 +861,7 @@ export default function AssetWorkspace() {
                                     </div>
                                 )}
                                 
-                                <div className="relative group">
+                                <div className="relative group/node">
                                     <button
                                         draggable
                                         onDragStart={() => handleDragStart(idx)}
@@ -862,39 +869,43 @@ export default function AssetWorkspace() {
                                         onDrop={(e) => handleDrop(e, idx)}
                                         onDragEnd={handleDragEnd}
                                         onClick={() => setSelectedSceneId(s.id)}
-                                        className={`flex-shrink-0 w-36 aspect-video rounded-lg border-2 transition-all relative overflow-hidden cursor-grab active:cursor-grabbing ${
-                                            activeScene.id === s.id ? 'border-blue-500 scale-105 shadow-xl shadow-blue-900/20' : 'border-[#1f2128] opacity-50 hover:opacity-100'
-                                        } ${isDragging ? 'opacity-20 scale-95 grayscale' : ''}`}
+                                        className={`flex-shrink-0 w-44 aspect-video rounded-3xl border-2 transition-all duration-300 relative overflow-hidden group/thumb ${
+                                            isActive 
+                                              ? 'border-primary scale-110 shadow-2xl shadow-primary/20 z-10' 
+                                              : 'border-outline-variant/30 opacity-60 hover:opacity-100 hover:scale-105 saturate-0 hover:saturate-100'
+                                        } ${isDragging ? 'opacity-20 scale-95 grayscale blur-sm' : ''}`}
                                     >
                                         {s.imageUrl ? (
-                                            <img src={s.imageUrl} className="w-full h-full object-cover" />
+                                            <img src={s.imageUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                         ) : (
-                                            <div className="w-full h-full bg-[#0d0d0f] flex items-center justify-center text-[10px] font-bold text-[#1f2128]">S{idx + 1}</div>
-                                        )}
-                                        <div className="absolute bottom-2 left-2 bg-black/60 px-1.5 py-0.5 rounded text-[8px] font-bold text-white backdrop-blur-md z-10 pointer-events-none">
-                                            {idx + 1}
-                                        </div>
-                                        {s.videoUrl && (
-                                            <div className="absolute top-2 right-2 z-10 pointer-events-none">
-                                                <Video className="w-3 h-3 text-blue-400" />
+                                            <div className="w-full h-full bg-surface-variant/10 flex items-center justify-center">
+                                              <span className="text-[10px] font-black text-on-surface-variant/40 tracking-widest uppercase">Node_{idx + 1}</span>
                                             </div>
                                         )}
-                                        
-                                        {/* Drag Handle Indicator */}
-                                        <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/5 transition-colors pointer-events-none" />
+                                        <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover/thumb:opacity-100 transition-opacity">
+                                          <p className="text-[8px] font-bold text-white uppercase tracking-widest truncate">{s.description}</p>
+                                        </div>
+                                        <div className="absolute top-2 left-2 bg-surface/80 backdrop-blur-md px-2 py-1 rounded-lg text-[9px] font-black text-on-surface shadow-sm border border-outline-variant/30 group-hover/thumb:bg-primary group-hover/thumb:text-on-primary transition-colors">
+                                            N_{idx + 1}
+                                        </div>
+                                        {s.videoUrl && (
+                                            <div className="absolute top-2 right-2 p-1.5 bg-primary rounded-lg shadow-lg">
+                                                <Video className="w-3 h-3 text-on-primary" />
+                                            </div>
+                                        )}
                                     </button>
 
-                                    {activeScene.id === s.id && idx > 0 && (
-                                        <div className="absolute -bottom-2 right-0 z-30">
+                                    {isActive && idx > 0 && (
+                                        <div className="absolute -bottom-4 right-0 z-40 scale-90 translate-y-2">
                                             <button 
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     setActiveSceneThumbTransitionIdx(activeSceneThumbTransitionIdx === idx ? null : idx);
                                                 }}
-                                                className="bg-[#151619]/90 text-blue-400 text-[9px] font-bold uppercase py-1 px-2 rounded-lg border border-[#2a2d35] hover:border-blue-500/50 backdrop-blur-md cursor-pointer flex items-center gap-1 shadow-lg"
+                                                className="m3-button-tonal py-1.5 px-3 rounded-full flex items-center gap-2 shadow-xl"
                                             >
-                                                <span>{s.transition || 'Cut'}</span>
-                                                <ArrowRightLeft className="w-2.5 h-2.5" />
+                                                <span className="text-[9px] font-black tracking-widest">{s.transition || 'Cut'}</span>
+                                                <ArrowRightLeft className="w-3 h-3" />
                                             </button>
 
                                             <AnimatePresence>
@@ -904,12 +915,12 @@ export default function AssetWorkspace() {
                                                         initial={{ opacity: 0, scale: 0.9, y: 10 }}
                                                         animate={{ opacity: 1, scale: 1, y: 0 }}
                                                         exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                                                        className="absolute bottom-full right-0 mb-2 w-32 bg-[#1f2128] border border-blue-500/30 rounded-xl shadow-2xl z-[100] overflow-hidden"
+                                                        className="absolute bottom-full right-0 mb-4 w-44 bg-surface rounded-[2rem] shadow-2xl z-[100] border border-outline-variant overflow-hidden"
                                                     >
-                                                        <div className="p-2 border-b border-[#2a2d35] bg-[#151619]">
-                                                            <span className="text-[8px] font-bold text-[#4e515a] uppercase tracking-widest pl-1">Transition</span>
+                                                        <div className="p-4 border-b border-outline-variant/30 bg-surface-variant/10 text-center">
+                                                            <span className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Morph Node</span>
                                                         </div>
-                                                        <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                                        <div className="max-h-52 overflow-y-auto custom-scrollbar p-2 grid grid-cols-1 gap-1">
                                                             {TRANSITIONS.map(t => (
                                                                 <button
                                                                     key={t.id}
@@ -921,12 +932,10 @@ export default function AssetWorkspace() {
                                                                         onUpdate({ ...project, scenes: newScenes });
                                                                         setActiveSceneThumbTransitionIdx(null);
                                                                     }}
-                                                                    className={`w-full text-left px-3 py-2 hover:bg-blue-600/10 flex items-center justify-between group/transitem transition-colors ${s.transition === t.label ? 'bg-blue-600/5' : ''}`}
+                                                                    className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between ${s.transition === t.label ? 'bg-primary/10 text-primary' : 'hover:bg-surface-variant/50 text-on-surface-variant'}`}
                                                                 >
-                                                                    <div className="flex flex-col">
-                                                                        <span className={`text-[10px] font-bold ${s.transition === t.label ? 'text-blue-400' : 'text-gray-300 group-hover/transitem:text-white'}`}>{t.label}</span>
-                                                                    </div>
-                                                                    {s.transition === t.label && <div className="w-1 h-1 rounded-full bg-blue-400" />}
+                                                                    <span className="text-[11px] font-black">{t.label}</span>
+                                                                    {s.transition === t.label && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
                                                                 </button>
                                                             ))}
                                                         </div>
@@ -937,9 +946,8 @@ export default function AssetWorkspace() {
                                     )}
                                 </div>
 
-                                {/* Drop Indicator AFTER */}
                                 {isDropTarget && dropIndicatorPos === 'after' && draggedIdx !== idx && draggedIdx !== idx + 1 && (
-                                    <div className="w-1 h-20 bg-blue-500 rounded-full animate-pulse mx-1 flex-shrink-0" />
+                                    <div className="w-1.5 h-24 bg-primary rounded-full animate-pulse mx-2 flex-shrink-0 shadow-[0_0_15px_rgba(var(--primary),0.5)]" />
                                 )}
                             </React.Fragment>
                         );
@@ -949,6 +957,35 @@ export default function AssetWorkspace() {
           </div>
         </motion.div>
       </AnimatePresence>
+    </div>
+  );
+}
+
+function EffectSlider({ label, value, min, max, step = 1, onChange, isTemp = false }: any) {
+  return (
+    <div className="space-y-3 group/slider">
+        <label className="text-[11px] font-black text-on-surface-variant uppercase tracking-widest flex items-center justify-between transition-colors group-hover/slider:text-on-surface">
+            <span>{label}</span>
+            <span className="text-primary font-mono bg-primary/5 px-2 py-0.5 rounded italic">{value}{label.includes('%') || label === 'Luminance' || label === 'Dynamic Range' || label === 'Chroma' ? '%' : ''}</span>
+        </label>
+        <div className="relative flex items-center h-6">
+          {isTemp ? (
+            <div className="absolute inset-y-2 left-0 right-0 rounded-full bg-gradient-to-r from-blue-500 via-gray-300 to-orange-500 opacity-30 group-hover/slider:opacity-60 transition-opacity" />
+          ) : (
+            <div className="absolute inset-y-2 left-0 right-0 rounded-full bg-outline-variant/20 overflow-hidden">
+               <motion.div 
+                 className="h-full bg-primary/40"
+                 animate={{ width: `${((value - min) / (max - min)) * 100}%` }}
+               />
+            </div>
+          )}
+          <input 
+              type="range" min={min} max={max} step={step}
+              value={value}
+              onChange={(e) => onChange(parseFloat(e.target.value))}
+              className="w-full relative z-10 accent-primary h-1 bg-transparent appearance-none cursor-pointer"
+          />
+        </div>
     </div>
   );
 }

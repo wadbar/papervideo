@@ -70,7 +70,7 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
         const base64Data = base64.split(',')[1] || base64;
         const voiceId = await provider.cloneVoice(newVoiceName, base64Data);
         
-        addClonedVoice({ id: voiceId, name: newVoiceName });
+        addClonedVoice({ id: voiceId, name: newVoiceName, provider: 'ElevenLabs' });
         setActiveVoice(voiceId);
         setNewVoiceName('');
       } catch (err) {
@@ -256,53 +256,58 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
   };
 
   return (
-    <div className="flex flex-col h-full gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Audio Booth</h2>
-          <p className="text-[#8e9299] text-sm">Harmonize your video with AI-powered narration and cinematic scores.</p>
+    <div className="flex flex-col h-full gap-8 max-w-7xl mx-auto w-full">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <h2 className="text-3xl font-bold tracking-tight text-on-surface">Audio Studio</h2>
+          <p className="text-on-surface-variant text-sm font-medium opacity-80">Harmonize your vision with AI-powered neural narration and cinematic scoring.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
             {(activeAudio || mixAudio.narration || mixAudio.music) && (
               <button 
                 onClick={stopActiveAudio}
-                className="px-4 py-2 bg-red-900/20 text-red-500 hover:bg-red-900/30 rounded-lg transition-colors flex items-center gap-2 border border-red-500/30"
+                className="px-6 py-2.5 bg-error/10 text-error hover:bg-error/20 rounded-full transition-all flex items-center gap-2 border border-error/20 text-xs font-bold uppercase tracking-widest"
               >
                 <X className="w-4 h-4" />
-                <span>Stop All Audio</span>
+                <span>Silence All</span>
               </button>
             )}
-            <button onClick={onPrev} className="px-4 py-2 bg-[#1f2128] hover:bg-[#252832] rounded-lg transition-colors flex items-center gap-2">
-                <ChevronLeft className="w-4 h-4" />
-                <span>Visuals</span>
-            </button>
-            <button onClick={onNext} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors flex items-center gap-2">
-                <span>Production</span>
-                <ChevronRight className="w-4 h-4" />
-            </button>
+            <div className="flex items-center bg-surface-variant/20 rounded-full p-1.5 border border-outline-variant/30">
+                <button onClick={onPrev} className="px-5 py-2 hover:bg-surface-variant/40 rounded-full transition-all flex items-center gap-2 text-xs font-bold text-on-surface-variant">
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Visuals</span>
+                </button>
+                <div className="w-px h-6 bg-outline-variant mx-1" />
+                <button onClick={onNext} className="m3-button-primary py-2 px-6 flex items-center gap-2 shadow-lg shadow-primary/20">
+                    <span className="text-xs font-black uppercase tracking-widest">Production</span>
+                    <ChevronRight className="w-4 h-4" />
+                </button>
+            </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 flex-1 min-h-0">
         {/* Left: Narration */}
-        <div className="hardware-card flex flex-col h-full bg-[#151619]">
-          <div className="p-6 border-b border-[#2a2d35] flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Mic className="w-5 h-5 text-red-500" />
-              <h3 className="font-bold uppercase tracking-widest text-sm">AI Voiceover</h3>
+        <div className="bg-surface rounded-[2.5rem] border border-outline-variant/40 flex flex-col h-full overflow-hidden shadow-sm transition-colors duration-300">
+          <div className="px-8 py-6 border-b border-outline-variant/30 flex items-center justify-between bg-surface-variant/5">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                <Mic className="w-5 h-5" />
+              </div>
+              <h3 className="font-black uppercase tracking-[0.2em] text-xs text-on-surface">Neural Narrator</h3>
             </div>
           </div>
           
-          <div className="p-6 flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
+          <div className="p-8 flex-1 flex flex-col gap-8 overflow-y-auto custom-scrollbar bg-surface/50">
             <div className="space-y-4">
-              <label className="text-[10px] uppercase font-bold text-[#4e515a] tracking-widest">Voice Selection</label>
-              <div className="grid grid-cols-3 gap-2">
+              <label className="text-[10px] uppercase font-black text-on-surface-variant tracking-[0.3em] pl-1">Voice Profile Identity</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {['Zephyr', 'Puck', 'Charon', 'Kore', 'Fenrir'].map(voice => (
                   <button
                     key={voice}
                     onClick={() => setActiveVoice(voice)}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${
-                      activeVoice === voice ? 'bg-red-900/20 border-red-500 text-red-100' : 'bg-[#1f2128] border-[#2a2d35] text-[#8e9299] hover:border-[#4e515a]'
+                    className={`px-4 py-3 rounded-2xl text-xs font-bold transition-all border ${
+                      activeVoice === voice ? 'bg-primary text-on-primary border-primary shadow-lg shadow-primary/20' : 'bg-surface/50 border-outline-variant/50 text-on-surface-variant hover:border-primary/50 hover:bg-primary/5'
                     }`}
                   >
                     {voice}
@@ -312,8 +317,8 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
                   <button
                     key={voice.id}
                     onClick={() => setActiveVoice(voice.id)}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${
-                      activeVoice === voice.id ? 'bg-red-900/20 border-red-500 text-red-100' : 'bg-[#1f2128] border-[#2a2d35] text-[#8e9299] hover:border-[#4e515a]'
+                    className={`px-4 py-3 rounded-2xl text-xs font-bold transition-all border ${
+                      activeVoice === voice.id ? 'bg-primary text-on-primary border-primary shadow-lg shadow-primary/20' : 'bg-surface/50 border-outline-variant/50 text-on-surface-variant hover:border-primary/50 hover:bg-primary/5'
                     }`}
                   >
                     {voice.name}
@@ -322,82 +327,92 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
               </div>
             </div>
 
-            <div className="space-y-4">
-              <label className="text-[10px] uppercase font-bold text-[#4e515a] tracking-widest">Speech Speed: {speechSpeed.charAt(0).toUpperCase() + speechSpeed.slice(1)}</label>
-              <input
-                type="range"
-                min="0"
-                max="2"
-                step="1"
-                value={['slow', 'normal', 'fast'].indexOf(speechSpeed)}
-                onChange={e => setSpeechSpeed(['slow', 'normal', 'fast'][parseInt(e.target.value)] as 'slow' | 'normal' | 'fast')}
-                className="w-full h-2 bg-[#1f2128] rounded-lg appearance-none cursor-pointer accent-red-500"
-              />
+            <div className="space-y-5">
+              <div className="flex items-center justify-between pl-1">
+                <label className="text-[10px] uppercase font-black text-on-surface-variant tracking-[0.3em]">Temporal Cadence</label>
+                <span className="text-[10px] font-mono font-bold text-primary italic uppercase">{speechSpeed}</span>
+              </div>
+              <div className="px-2">
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="1"
+                  value={['slow', 'normal', 'fast'].indexOf(speechSpeed)}
+                  onChange={e => setSpeechSpeed(['slow', 'normal', 'fast'][parseInt(e.target.value)] as 'slow' | 'normal' | 'fast')}
+                  className="w-full h-1.5 bg-surface-variant/30 rounded-full appearance-none cursor-pointer accent-primary"
+                />
+              </div>
             </div>
 
-            <div className="pt-4 border-t border-[#2a2d35]">
-              <h4 className="text-[10px] uppercase font-bold text-[#4e515a] mb-3 tracking-widest">Clone a New Voice</h4>
-              <div className="flex gap-2">
+            <div className="pt-8 border-t border-outline-variant/30">
+              <h4 className="text-[10px] uppercase font-black text-on-surface-variant mb-4 tracking-[0.3em] pl-1">Genetic Voice Cloning</h4>
+              <div className="flex gap-3">
                 <input 
                   type="text" 
-                  placeholder="Voice Name" 
+                  placeholder="Identity Name" 
                   value={newVoiceName}
                   onChange={e => setNewVoiceName(e.target.value)}
-                  className="flex-1 bg-[#1f2128] border border-[#2a2d35] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500"
+                  className="flex-1 bg-surface-variant/10 border border-outline-variant/50 rounded-2xl px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                   disabled={isCloning}
                 />
-                <label className={`flex items-center justify-center gap-2 px-3 py-2 bg-[#1f2128] border border-[#2a2d35] hover:border-[#4e515a] rounded-lg text-xs font-medium cursor-pointer transition-all ${isCloning ? 'opacity-50 pointer-events-none' : ''}`}>
-                  {isCloning ? <Loader2 className="w-4 h-4 animate-spin text-red-500" /> : <Mic className="w-4 h-4 text-[#8e9299]" />}
-                  <span>{isCloning ? 'Cloning...' : 'Upload Sample'}</span>
+                <label className={`flex items-center justify-center gap-3 px-6 py-3 bg-surface/50 border border-outline-variant/40 hover:border-primary/50 rounded-2xl text-xs font-bold cursor-pointer transition-all shadow-sm ${isCloning ? 'opacity-50 pointer-events-none' : 'hover:shadow-md'}`}>
+                  {isCloning ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Mic className="w-4 h-4 text-primary" />}
+                  <span className="uppercase tracking-widest">{isCloning ? 'Clonning' : 'Sample'}</span>
                   <input type="file" accept="audio/*" className="hidden" onChange={handleVoiceUpload} />
                 </label>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-[#2a2d35]">
-                <h4 className="text-[10px] uppercase font-bold text-[#4e515a] mb-3 tracking-widest">Advanced Effects</h4>
-                <div className="flex flex-wrap gap-2">
-                    <label className="flex items-center gap-2 cursor-pointer bg-[#1f2128] border border-[#2a2d35] px-3 py-1.5 rounded-lg">
-                        <input type="checkbox" className="accent-red-500" />
-                        <span className="text-[10px] uppercase font-bold text-gray-300">De-noise</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer bg-[#1f2128] border border-[#2a2d35] px-3 py-1.5 rounded-lg">
-                        <input type="checkbox" className="accent-red-500" />
-                        <span className="text-[10px] uppercase font-bold text-gray-300">Studio EQ</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer bg-[#1f2128] border border-[#2a2d35] px-3 py-1.5 rounded-lg">
-                        <input type="checkbox" className="accent-red-500" defaultChecked />
-                        <span className="text-[10px] uppercase font-bold text-gray-300">Auto Ducking</span>
-                    </label>
+            <div className="pt-8 border-t border-outline-variant/30">
+                <h4 className="text-[10px] uppercase font-black text-on-surface-variant mb-4 tracking-[0.3em] pl-1">Neural DSP Matrix</h4>
+                <div className="flex flex-wrap gap-3">
+                    {['De-noise', 'Studio EQ', 'Auto Ducking'].map((effect, idx) => (
+                      <label key={effect} className="flex items-center gap-3 cursor-pointer bg-surface/40 border border-outline-variant/40 px-4 py-2.5 rounded-2xl hover:bg-surface-variant/5 transition-all text-on-surface select-none">
+                        <div className="relative flex items-center">
+                          <input type="checkbox" className="w-4 h-4 accent-primary rounded cursor-pointer" defaultChecked={idx === 2} />
+                        </div>
+                        <span className="text-[10px] uppercase font-black tracking-widest">{effect}</span>
+                      </label>
+                    ))}
                 </div>
             </div>
 
-            <div className="flex-1 p-4 bg-[#0d0d0f] border border-[#2a2d35] rounded-xl overflow-y-auto custom-scrollbar">
-                <h4 className="text-[10px] uppercase font-bold text-[#4e515a] mb-3 tracking-widest">Full Script Preview</h4>
-                <div className="space-y-6">
+            <div className="flex-1 p-6 bg-surface-variant/5 border border-outline-variant/20 rounded-[2rem] overflow-y-auto custom-scrollbar flex flex-col gap-6">
+                <div className="flex items-center justify-between px-2">
+                  <h4 className="text-[10px] uppercase font-black text-on-surface-variant tracking-[0.3em]">Sequential Transcript</h4>
+                  <div className="flex gap-1">
+                    {[1,2,3].map(i => <div key={i} className="w-1 h-1 rounded-full bg-primary/30" />)}
+                  </div>
+                </div>
+                <div className="space-y-8">
                     {project.scenes.map((scene, i) => (
-                        <div key={scene.id} className="border-l-2 border-red-900/30 pl-4 group">
-                            <div className="flex items-center justify-between mb-1">
-                               <span className="text-[10px] text-red-500 block">Scene {i+1}</span>
+                        <div key={scene.id} className="relative pl-6 group">
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/10 rounded-full group-hover:bg-primary/30 transition-colors" />
+                            <div className="flex items-center justify-between mb-2">
+                               <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black text-primary uppercase tracking-widest">Node {i+1}</span>
+                                  <div className="w-1 h-1 rounded-full bg-outline-variant" />
+                                  <span className="text-[9px] font-mono text-on-surface-variant/50">T+{(i*5).toString().padStart(2, '0')}s</span>
+                               </div>
                                <button 
                                  onClick={() => previewSceneNarration(i)}
                                  disabled={isPreviewing}
-                                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-[#1f2128] rounded text-xs text-red-400 flex items-center gap-1"
-                                 title="Preview Scene Narration"
+                                 className="opacity-0 group-hover:opacity-100 transition-all p-2 bg-primary/10 hover:bg-primary hover:text-on-primary rounded-xl text-primary flex items-center gap-2 transform translate-x-2 group-hover:translate-x-0"
                                >
-                                 {isPreviewing ? <Loader2 className="w-3 h-3 animate-spin"/> : <Play className="w-3 h-3" />}
-                                 <span className="text-[9px]">Preview</span>
+                                 {isPreviewing ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Play className="w-3.5 h-3.5 fill-current" />}
+                                 <span className="text-[10px] font-black uppercase tracking-widest pr-1">Listen</span>
                                </button>
                             </div>
-                             <p className="text-sm leading-relaxed">{scene.narrationText}</p>
+                            <p className="text-sm leading-relaxed text-on-surface/80 font-medium">{scene.narrationText}</p>
                         </div>
                     ))}
                 </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6 pt-4">
                 {project.audio?.narrationUrl && (
-                    <div className="p-4 bg-red-900/10 border border-red-900/30 rounded-xl flex items-center gap-4">
+                    <div className="p-5 bg-primary/5 border border-primary/20 rounded-[2rem] flex items-center gap-5 shadow-inner">
                         <button 
                           onClick={() => {
                             stopActiveAudio();
@@ -407,61 +422,64 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
                             audio.play();
                             audio.onended = () => setActiveAudio(null);
                           }}
-                          className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors ${activeAudio?.src === project.audio?.narrationUrl ? 'bg-red-400' : 'bg-red-500 hover:bg-red-400'}`}
+                          className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-lg ${activeAudio?.src === project.audio?.narrationUrl ? 'bg-primary text-on-primary scale-95' : 'bg-surface text-primary border border-primary/20 hover:bg-primary/10'}`}
                         >
-                            <Play className="w-5 h-5 text-white" />
+                            <Play className={`w-6 h-6 ${activeAudio?.src === project.audio?.narrationUrl ? 'fill-current' : ''}`} />
                         </button>
                         <div className="flex-1">
-                            <p className="text-xs font-bold">Narration Ready</p>
-                            <div className="h-1 bg-red-900/30 rounded-full mt-2 w-full">
-                                <div className="h-1 bg-red-500 rounded-full w-[100%]" />
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Master Narration Computed</p>
+                              <span className="text-[10px] font-mono font-bold text-on-surface-variant italic">100% SECURE</span>
+                            </div>
+                            <div className="h-1.5 bg-primary/10 rounded-full w-full overflow-hidden">
+                                <motion.div 
+                                  initial={{ width: 0 }}
+                                  animate={{ width: '100%' }}
+                                  className="h-full bg-primary" 
+                                />
                             </div>
                         </div>
-                        <Volume2 className="w-4 h-4 text-red-500" />
                     </div>
                 )}
                 
-                <div className="flex flex-col gap-2">
-                  <button 
-                    onClick={generateNarration}
-                    disabled={!!isGenerating || isPreviewing || project.scenes.length === 0}
-                    className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white py-3 rounded-xl transition-all font-bold shadow-lg shadow-red-900/20"
-                  >
-                    {isGenerating === 'narration' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Mic className="w-5 h-5" />}
-                    <span>Synthesize Full Narration</span>
-                  </button>
-                </div>
+                <button 
+                  onClick={generateNarration}
+                  disabled={!!isGenerating || isPreviewing || project.scenes.length === 0}
+                  className="w-full flex items-center justify-center gap-3 bg-primary hover:bg-primary/90 disabled:opacity-50 text-on-primary py-4 rounded-[2rem] transition-all font-black text-sm uppercase tracking-[0.3em] shadow-xl shadow-primary/20 active:scale-[0.98]"
+                >
+                  {isGenerating === 'narration' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                  <span>Synthesize Full Arc</span>
+                </button>
             </div>
           </div>
         </div>
 
         {/* Right: Music */}
-        <div className="hardware-card flex flex-col h-full bg-[#151619]">
-          <div className="p-6 border-b border-[#2a2d35] flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Music className="w-5 h-5 text-blue-500" />
-              <h3 className="font-bold uppercase tracking-widest text-sm">Music Generator</h3>
+        <div className="bg-surface rounded-[2.5rem] border border-outline-variant/40 flex flex-col h-full overflow-hidden shadow-sm transition-colors duration-300">
+          <div className="px-8 py-6 border-b border-outline-variant/30 flex items-center justify-between bg-surface-variant/5">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary">
+                <Music className="w-5 h-5" />
+              </div>
+              <h3 className="font-black uppercase tracking-[0.2em] text-xs text-on-surface">Neural Scoring Engine</h3>
             </div>
           </div>
 
-          <div className="p-6 flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
+          <div className="p-8 flex-1 flex flex-col gap-8 overflow-y-auto custom-scrollbar bg-surface/50">
             <div className="space-y-4">
-              <label className="text-[10px] uppercase font-bold text-[#4e515a] tracking-widest">Description / Prompt</label>
+              <label className="text-[10px] uppercase font-black text-on-surface-variant tracking-[0.3em] pl-1">Vibe Synthesis Parameters</label>
               <textarea 
                 value={musicPrompt}
                 onChange={(e) => setMusicPrompt(e.target.value)}
-                className="w-full h-24 bg-[#0a0a0b] border border-[#2a2d35] rounded-xl p-4 text-sm text-white placeholder-[#4e515a] focus:outline-none focus:border-blue-500 transition-colors resize-none"
-                placeholder="Ex: Epic cinematic orchestral score with light acoustic guitar..."
+                className="w-full h-28 bg-surface-variant/10 border border-outline-variant/50 rounded-[2rem] p-5 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/20 transition-all resize-none leading-relaxed font-medium"
+                placeholder="Describe the sonic atmosphere..."
               />
-              <div className="flex flex-wrap gap-2">
-                {['Cinematic', 'Lofi', 'Orchestral', 'Synthwave', 'Epic', 'Acoustic', 'Horror', 'Cyberpunk', 'Zen', 'Jazz'].map(style => (
+              <div className="flex gap-2 p-1 overflow-x-auto custom-scrollbar no-scrollbar items-center">
+                {['Cinematic', 'Lofi', 'Epic', 'Cyberpunk', 'Zen', 'Jazz'].map(style => (
                     <button 
                         key={style}
-                        onClick={() => {
-                          const separator = musicPrompt ? ', ' : '';
-                          setMusicPrompt(prev => prev + `${separator}${style}`);
-                        }}
-                        className="px-2 py-1 bg-[#1f2128] border border-[#2a2d35] rounded text-[10px] text-[#8e9299] hover:text-white transition-colors"
+                        onClick={() => setMusicPrompt(prev => prev + (prev ? ', ' : '') + style)}
+                        className="flex-shrink-0 px-4 py-2 bg-surface border border-outline-variant/40 rounded-full text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:text-secondary hover:border-secondary transition-all"
                     >
                         + {style}
                     </button>
@@ -469,176 +487,201 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-[#2a2d35] rounded-2xl bg-[#0d0d0f] min-h-[250px]">
+            <div className="flex-1 flex flex-col p-8 border-2 border-dashed border-outline-variant/30 rounded-[3rem] bg-surface-variant/5 min-h-[300px] relative transition-all hover:bg-surface-variant/10">
                 {project.audio?.musicVariations && project.audio.musicVariations.length > 0 && !project.audio?.musicUrl ? (
-                    <div className="w-full flex-1 flex flex-col gap-4">
-                        <h4 className="font-bold text-sm mb-2 uppercase tracking-widest text-[#4e515a] self-start">Select a Variation</h4>
-                        <div className="flex flex-col gap-3 w-full">
+                    <div className="w-full flex-1 flex flex-col gap-6">
+                        <div className="flex items-center justify-between px-2">
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface-variant">Genetic Variations Computed</h4>
+                          <ListMusic className="w-4 h-4 opacity-30" />
+                        </div>
+                        <div className="flex flex-col gap-4 w-full">
                             {project.audio.musicVariations.map((url, i) => (
-                                <div key={i} className="flex items-center gap-4 bg-[#1f2128] p-3 rounded-xl border border-[#2a2d35] w-full">
+                                <motion.div 
+                                  initial={{ opacity: 0, scale: 0.95 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  key={i} 
+                                  className="group flex items-center gap-5 bg-surface p-4 rounded-[2rem] border border-outline-variant/40 w-full hover:shadow-lg transition-all hover:bg-surface"
+                                >
                                     <button 
                                         onClick={() => previewTrack(url)}
-                                        className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors flex-shrink-0"
+                                        className="w-14 h-14 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center hover:bg-secondary hover:text-on-secondary transition-all flex-shrink-0 shadow-inner"
                                     >
-                                        <Play className="w-4 h-4 ml-0.5" />
+                                        <Play className="w-6 h-6 fill-current" />
                                     </button>
                                     <div className="flex-1 text-left">
-                                        <h5 className="font-bold text-sm">Variation {i + 1}</h5>
-                                        <p className="text-[10px] text-[#8e9299]">AI Generated Track</p>
+                                        <h5 className="font-black text-sm text-on-surface leading-tight">Neural Track {i + 1}</h5>
+                                        <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-mono mt-1 opacity-60">BITRATE_640KBPS</p>
                                     </div>
                                     <button
                                         onClick={() => selectMusic(url)}
-                                        className="px-4 py-2 bg-[#2a2d35] hover:bg-blue-600 text-xs font-bold rounded-lg transition-colors"
+                                        className="m3-button-tonal py-2 px-6 flex items-center gap-2 transform active:scale-95"
                                     >
-                                        Select
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Bind</span>
                                     </button>
-                                </div>
+                                </motion.div>
                             ))}
                         </div>
                     </div>
                 ) : project.audio?.musicUrl ? (
-                    <>
-                        <div className="w-20 h-20 rounded-full border-4 border-blue-500/30 flex items-center justify-center mb-4 relative">
-                            <button 
-                                onClick={previewMusic}
-                                className="absolute inset-2 rounded-full bg-blue-500 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform z-10"
-                            >
-                                <Play className="w-8 h-8 text-white ml-1" />
-                            </button>
+                    <div className="flex-1 flex flex-col items-center justify-center text-center">
+                        <div className="w-28 h-28 rounded-full bg-secondary/5 flex items-center justify-center mb-8 relative group" style={{ background: 'transparent' }}>
                             <motion.div 
                                 animate={{ rotate: 360 }}
-                                transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-                                className="absolute inset-0 border-t-4 border-blue-500 rounded-full"
+                                transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+                                className="absolute inset-0 border-[3px] border-secondary/20 border-t-secondary rounded-full"
                             />
+                            <button 
+                                onClick={previewMusic}
+                                className="w-20 h-20 rounded-full bg-secondary text-on-secondary flex items-center justify-center shadow-xl shadow-secondary/20 hover:scale-110 active:scale-95 transition-all z-10"
+                            >
+                                <Play className="w-10 h-10 fill-current ml-1" />
+                            </button>
                         </div>
-                        <h4 className="font-bold mb-1">Theme Computed</h4>
-                        <p className="text-xs text-[#8e9299]">30s Original composition ready</p>
-                    </>
+                        <h4 className="text-xl font-bold text-on-surface leading-tight">Sonic Theorem Bound</h4>
+                        <p className="text-sm font-medium text-on-surface-variant opacity-60 mt-2 uppercase tracking-widest">Original Scoring Computed</p>
+                    </div>
                 ) : (
-                    <>
-                        <div className="w-16 h-16 rounded-full bg-[#1f2128] flex items-center justify-center mb-4">
-                            <ListMusic className="w-8 h-8 text-[#4e515a]" />
+                    <div className="flex-1 flex flex-col items-center justify-center text-center">
+                        <div className="w-20 h-20 rounded-[2rem] bg-surface-variant/10 flex items-center justify-center mb-6 border border-outline-variant/30">
+                            <ListMusic className="w-8 h-8 text-on-surface-variant opacity-30" />
                         </div>
-                        <p className="text-sm text-[#8e9299]">Define your style and hit compose</p>
-                    </>
+                        <h4 className="text-lg font-bold text-on-surface opacity-30">Sonic Void</h4>
+                        <p className="text-sm font-medium text-on-surface-variant opacity-30 mt-2 uppercase tracking-widest">Neural weights waiting for prompt</p>
+                    </div>
                 )}
             </div>
 
             <button 
               onClick={generateMusic}
               disabled={!!isGenerating}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white py-3 rounded-xl transition-all font-bold shadow-lg shadow-blue-900/20"
+              className="w-full flex items-center justify-center gap-3 m3-button-primary bg-secondary hover:bg-secondary/90 disabled:opacity-50 text-on-secondary py-4 rounded-[2rem] transition-all font-black text-sm uppercase tracking-[0.3em] shadow-xl shadow-secondary/20 active:scale-[0.98]"
             >
               {isGenerating === 'music' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-              <span>Generate Audio Theme</span>
+              <span>Synthesize Score</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Audio Mixer */}
-      <div className="hardware-card p-6 bg-[#151619]">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <Volume2 className="w-5 h-5 text-green-500" />
-            <h3 className="font-bold uppercase tracking-widest text-sm">Audio Mixer</h3>
+      <div className="bg-surface rounded-[3rem] p-10 border border-outline-variant/40 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-10">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-2xl bg-tertiary/10 flex items-center justify-center text-tertiary">
+                <Volume2 className="w-5 h-5" />
+            </div>
+            <h3 className="font-black uppercase tracking-[0.3em] text-xs text-on-surface">Neural Master Mix</h3>
           </div>
           
           <button 
             onClick={previewFullMix}
             disabled={!project.audio?.narrationUrl || !project.audio?.musicUrl}
-            className="px-6 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white rounded-full transition-all text-xs font-bold flex items-center gap-2 shadow-lg shadow-green-900/20"
+            className="m3-button-tonal py-3 px-10 flex items-center gap-3 shadow-md hover:shadow-lg active:scale-95 transition-all text-sm font-black uppercase tracking-[0.2em]"
           >
-            <Play className="w-3 h-3" />
-            <span>Test Final Mix</span>
+            <Play className="w-4 h-4 fill-current" />
+            <span>Conduct Full Audit</span>
           </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase font-bold text-[#4e515a] tracking-widest">Narration Volume</span>
-              <span className="text-xs text-[#8e9299]">{Math.round(volume * 100)}%</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-4 px-2">
+              <span className="text-[10px] uppercase font-black text-on-surface-variant tracking-[0.3em]">Narration Delta</span>
+              <span className="text-[10px] font-mono font-bold text-primary bg-primary/5 px-2 py-0.5 rounded italic">{Math.round(volume * 100)}%</span>
             </div>
-            <input
-              type="range"
-              min="0"
-              max="2"
-              step="0.1"
-              value={volume}
-              onChange={e => {
-                const vol = parseFloat(e.target.value);
-                setVolume(vol);
-                onUpdate({ ...project, audio: { ...project.audio, narrationVolume: vol } });
-              }}
-              className="w-full h-2 bg-[#1f2128] rounded-lg appearance-none cursor-pointer accent-red-500"
-            />
+            <div className="px-2">
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={volume}
+                  onChange={e => {
+                    const vol = parseFloat(e.target.value);
+                    setVolume(vol);
+                    onUpdate({ ...project, audio: { ...project.audio, narrationVolume: vol } });
+                  }}
+                  className="w-full h-1.5 bg-surface-variant/30 rounded-full appearance-none cursor-pointer accent-primary"
+                />
+            </div>
+            <div className="flex justify-between text-[8px] font-black text-on-surface-variant opacity-30 mt-2 px-2 uppercase tracking-widest">
+                <span>0_DB</span>
+                <span>HEADROOM_SYNC</span>
+                <span>+6_DB</span>
+            </div>
           </div>
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase font-bold text-[#4e515a] tracking-widest">Background Music Volume</span>
-              <span className="text-xs text-[#8e9299]">{Math.round(musicVolume * 100)}%</span>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-4 px-2">
+              <span className="text-[10px] uppercase font-black text-on-surface-variant tracking-[0.3em]">Atmospheric Score</span>
+              <span className="text-[10px] font-mono font-bold text-secondary bg-secondary/5 px-2 py-0.5 rounded italic">{Math.round(musicVolume * 100)}%</span>
             </div>
-            <input
-              type="range"
-              min="0"
-              max="2"
-              step="0.1"
-              value={musicVolume}
-              onChange={e => {
-                const vol = parseFloat(e.target.value);
-                setMusicVolume(vol);
-                onUpdate({ ...project, audio: { ...project.audio, musicVolume: vol } });
-              }}
-              className="w-full h-2 bg-[#1f2128] rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
+            <div className="px-2">
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={musicVolume}
+                  onChange={e => {
+                    const vol = parseFloat(e.target.value);
+                    setMusicVolume(vol);
+                    onUpdate({ ...project, audio: { ...project.audio, musicVolume: vol } });
+                  }}
+                  className="w-full h-1.5 bg-surface-variant/30 rounded-full appearance-none cursor-pointer accent-secondary"
+                />
+            </div>
+            <div className="flex justify-between text-[8px] font-black text-on-surface-variant opacity-30 mt-2 px-2 uppercase tracking-widest">
+                <span>MUTED</span>
+                <span>AMBIENT_SYNC</span>
+                <span>OVERDRIVE</span>
+            </div>
           </div>
         </div>
       </div>
 
       <AnimatePresence>
         {showCloneConfirm && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-scrim/40 backdrop-blur-md">
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md bg-[#151619] border border-[#2a2d35] rounded-2xl p-6 shadow-2xl"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="w-full max-w-lg m3-card p-10 overflow-hidden relative"
             >
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-full bg-red-900/20 flex items-center justify-center">
-                  <AlertTriangle className="w-6 h-6 text-red-500" />
+              <div className="flex items-center gap-6 mb-8">
+                <div className="w-16 h-16 rounded-[2rem] bg-error/10 flex items-center justify-center text-error shadow-inner">
+                  <AlertTriangle className="w-8 h-8" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg">Voice Cloning Consent</h3>
-                  <p className="text-xs text-[#8e9299]">Confirmation required for synthesis</p>
+                  <h3 className="font-bold text-2xl text-on-surface leading-tight">Biometric Authorization</h3>
+                  <p className="text-xs font-black uppercase text-on-surface-variant tracking-widest mt-1 opacity-60">Legal Compliance Filter</p>
                 </div>
               </div>
 
-              <div className="space-y-4 mb-8">
-                <p className="text-sm text-[#8e9299] leading-relaxed">
-                  By proceeding, you confirm that you have the right to clone this voice and that it will be used in accordance with our terms of service. This process creates a digital replica of the provided audio sample.
+              <div className="space-y-6 mb-10">
+                <p className="text-sm font-medium text-on-surface-variant leading-relaxed opacity-80">
+                  Genetic voice reconstruction requires explicit authorization. By proceeding, you certify project ownership and legal usage rights for the target identity.
                 </p>
-                <div className="p-3 bg-[#0d0d0f] border border-[#2a2d35] rounded-lg">
-                  <p className="text-[10px] uppercase font-bold text-[#4e515a] mb-1">Target Voice</p>
-                  <p className="text-sm font-bold text-white">{newVoiceName}</p>
+                <div className="p-5 bg-surface-variant/10 border border-outline-variant/40 rounded-[2rem]">
+                  <p className="text-[10px] uppercase font-black text-on-surface-variant mb-1 tracking-widest">Subject Identity</p>
+                  <p className="text-lg font-bold text-on-surface">{newVoiceName}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <button 
                   onClick={() => {
                     setShowCloneConfirm(false);
                     setPendingVoiceFile(null);
                   }}
-                  className="px-4 py-3 bg-[#1f2128] hover:bg-[#2a2d35] rounded-xl text-sm font-bold transition-colors"
+                  className="px-6 py-4 bg-surface-variant/20 hover:bg-surface-variant/40 rounded-[2rem] text-sm font-black uppercase tracking-widest transition-all"
                 >
-                  Cancel
+                  Terminate
                 </button>
                 <button 
                   onClick={executeCloning}
-                  className="px-4 py-3 bg-red-600 hover:bg-red-500 rounded-xl text-sm font-bold text-white transition-colors shadow-lg shadow-red-900/20"
+                  className="m3-button-primary bg-error text-on-error hover:bg-error/90 py-4 px-6 shadow-xl shadow-error/20 font-black text-sm uppercase tracking-[0.2em]"
                 >
-                  Authorize & Clone
+                  Auth & Replicate
                 </button>
               </div>
             </motion.div>

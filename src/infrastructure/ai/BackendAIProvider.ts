@@ -112,6 +112,10 @@ export class BackendAIProvider implements AIProvider {
     return this.fetchAuth('/suggest-transition', { currentSceneDesc, nextSceneDesc }, signal);
   }
 
+  async suggestThumbnail(projectData: any, signal?: AbortSignal): Promise<any[]> {
+    return this.fetchAuth('/suggest-thumbnail', projectData, signal);
+  }
+
   async analyzeSceneMetadata(description: string, narration: string, signal?: AbortSignal): Promise<{ suggestions: string }> {
     return this.fetchAuth('/analyze-scene-metadata', { description, narration }, signal);
   }

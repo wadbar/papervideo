@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Activity, ShieldCheck, Zap, Cpu, Trash2 } from 'lucide-react';
+import { Terminal, Activity, ShieldCheck, Zap, Cpu, Trash2, X, AlertCircle, Signal, CheckCircle2, ChevronUp, Layers, Command } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogType, sysLog } from '../lib/sys';
 import { useProjectStore } from '../core/store/useProjectStore';
@@ -40,147 +40,151 @@ export default function SystemMonitor() {
 
   return (
     <>
-      {/* Floating Status Bar */}
-      <div 
+      {/* Floating Status Bar - MD3 FAB Style */}
+      <motion.div 
+        layout
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-4 left-4 z-50 flex items-center gap-4 bg-black/80 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full cursor-pointer hover:bg-black/90 transition-all group overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:border-blue-500/30"
+        className="fixed bottom-6 left-6 z-50 flex items-center gap-6 bg-surface border border-outline-variant/30 px-6 py-3.5 rounded-[2rem] cursor-pointer hover:bg-surface-variant transition-all group shadow-xl active:scale-95 select-none"
       >
-        <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
-          <span className="text-[10px] font-mono font-bold tracking-tighter text-blue-400">PAPERCREEPER // NODE STATUS</span>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-3 h-3 bg-primary rounded-full animate-pulse shadow-[0_0_12px_var(--color-primary)]" />
+            <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-on-surface opacity-80">Telemetry Uplink</span>
         </div>
-        <div className="h-4 w-[1px] bg-white/10" />
-        <div className="flex items-center gap-4 text-[10px] font-mono text-white/40">
-           <div className="flex items-center gap-1.5 group/stat">
-             <Activity className="w-3 h-3 text-blue-500/60" />
-             <span className="group-hover/stat:text-blue-400 transition-colors">8.4GB</span>
+        
+        <div className="h-4 w-px bg-outline-variant/40" />
+        
+        <div className="flex items-center gap-6 text-[10px] font-mono font-black tracking-tight text-on-surface-variant">
+           <div className="flex items-center gap-2 group/stat">
+             <Activity className="w-3.5 h-3.5 text-primary opacity-60" />
+             <span>8.4GB</span>
            </div>
-           <div className="flex items-center gap-1.5 group/stat">
-             <Cpu className="w-3 h-3 text-orange-500/60" />
-             <span className="group-hover/stat:text-orange-400 transition-colors">12% CPU</span>
+           <div className="flex items-center gap-2 group/stat">
+             <Cpu className="w-3.5 h-3.5 text-secondary opacity-60" />
+             <span>12%</span>
            </div>
-           <div className="flex items-center gap-1.5 group/stat">
-             <Zap className="w-3 h-3 text-green-500/60" />
-             <span className="group-hover/stat:text-green-400 transition-colors">2.4ms</span>
+           <div className="flex items-center gap-2 group/stat">
+             <Zap className="w-3.5 h-3.5 text-tertiary opacity-60" />
+             <span>2.4ms</span>
            </div>
+           <ChevronUp className={`w-3.5 h-3.5 transition-transform duration-500 ${isOpen ? 'rotate-180' : ''}`} />
         </div>
-      </div>
+      </motion.div>
 
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-16 left-4 z-50 w-[400px] h-[500px] glass-ultra rounded-2xl overflow-hidden flex flex-col tech-bg shadow-2xl border-blue-500/20"
+            initial={{ opacity: 0, y: 50, scale: 0.9, filter: 'blur(10px)' }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, y: 50, scale: 0.9, filter: 'blur(10px)' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="fixed bottom-24 left-6 z-50 w-[440px] h-[600px] bg-surface rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl border border-outline-variant/30"
           >
-            <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/5 backdrop-blur-md">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                  <Terminal className="w-3 h-3 text-blue-400" />
+            {/* Header */}
+            <div className="px-8 py-6 border-b border-outline-variant/30 flex items-center justify-between bg-surface relative z-10">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 text-primary">
+                  <Terminal className="w-5 h-5" />
                 </div>
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-blue-100">PaperCreeper Terminal</h3>
-                  <p className="text-[8px] font-mono text-blue-500/60 uppercase">Runtime: Chromium Build // Stack: v120_STABLE</p>
+                <div className="flex flex-col">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-on-surface">Master Control</h3>
+                  <p className="text-[9px] font-black tracking-[0.1em] text-on-surface-variant opacity-40">PAPERCREEPER_V120_STABLE</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="px-2 py-0.5 rounded bg-green-500/10 border border-green-500/20 text-[8px] font-mono text-green-500 font-bold uppercase tracking-widest">
-                  GPU_ACCEL: ON
-                </div>
-                <div className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[8px] font-mono text-blue-500 font-bold uppercase tracking-widest">
-                  SW: CACHED
-                </div>
-                <button onClick={() => setIsOpen(false)} className="text-white/20 hover:text-white transition-colors">
-                  <Activity className="w-4 h-4 rotate-90" />
-                </button>
-              </div>
+              <button onClick={() => setIsOpen(false)} className="w-10 h-10 flex items-center justify-center hover:bg-surface-variant rounded-full transition-all active:scale-90">
+                <X className="w-5 h-5 text-on-surface-variant" />
+              </button>
             </div>
 
-            <div className="bg-black/40 p-4 border-b border-white/5 grid grid-cols-2 gap-4">
-               <div className="space-y-2">
-                 <div className="flex items-center justify-between text-[8px] font-mono text-white/40 uppercase">
-                    <span>Task Orchestration</span>
-                    <span>Active</span>
-                 </div>
-                 <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                    <motion.div 
-                      animate={{ width: ['20%', '80%', '40%', '90%', '60%'] }}
-                      transition={{ duration: 10, repeat: Infinity }}
-                      className="h-full bg-blue-500" 
-                    />
-                 </div>
+            {/* Performance Strips */}
+            <div className="bg-surface-variant/10 p-2 space-y-px">
+               <div className="flex items-center gap-2 px-6 py-3">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-on-surface-variant w-24">Neural Load</span>
+                  <div className="flex-1 h-1.5 bg-outline-variant/20 rounded-full overflow-hidden">
+                     <motion.div 
+                        animate={{ width: ['20%', '80%', '40%', '90%', '60%'] }}
+                        transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                        className="h-full bg-primary" 
+                     />
+                  </div>
                </div>
-               <div className="space-y-2">
-                 <div className="flex items-center justify-between text-[8px] font-mono text-white/40 uppercase">
-                    <span>Buffer Allocation</span>
-                    <span>Stable</span>
-                 </div>
-                 <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                    <motion.div 
-                      animate={{ width: ['60%', '65%', '62%', '68%', '64%'] }}
-                      transition={{ duration: 5, repeat: Infinity }}
-                      className="h-full bg-orange-500" 
-                    />
-                 </div>
+               <div className="flex items-center gap-2 px-6 py-3">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-on-surface-variant w-24">IO Bandwidth</span>
+                  <div className="flex-1 h-1.5 bg-outline-variant/20 rounded-full overflow-hidden">
+                     <motion.div 
+                        animate={{ width: ['60%', '65%', '62%', '68%', '64%'] }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                        className="h-full bg-secondary" 
+                     />
+                  </div>
                </div>
             </div>
 
+            {/* Logs Area */}
             <div 
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-4 space-y-1.5 custom-scrollbar text-[10px] font-mono bg-black/20"
+              className="flex-1 overflow-y-auto p-8 space-y-3 custom-scrollbar text-[11px] font-mono bg-surface-variant/5 selection:bg-primary selection:text-on-primary"
             >
               {logs.length === 0 && (
-                <div className="h-full flex flex-col items-center justify-center text-white/10 italic gap-2 scale-90 grayscale opacity-50">
-                  <Cpu className="w-8 h-8" />
-                  <span>Awaiting system event broadcast...</span>
+                <div className="h-full flex flex-col items-center justify-center text-on-surface-variant/10 gap-6 opacity-30 select-none">
+                  <Signal className="w-16 h-16 animate-pulse" />
+                  <div className="text-center space-y-1">
+                    <p className="font-black uppercase tracking-[0.3em]">Neural Silence</p>
+                    <p className="text-[8px] font-black uppercase tracking-widest">Awaiting system handshake...</p>
+                  </div>
                 </div>
               )}
               {logs.map((log) => (
-                <div key={log.id} className="group flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300 hover:bg-white/5 px-1 rounded transition-colors">
-                  <span className="text-white/10 shrink-0 select-none">[{new Date(log.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]</span>
-                  <span className={`shrink-0 font-bold ${
-                    log.type === 'error' ? 'text-red-400' : 
-                    log.type === 'warn' ? 'text-yellow-400' : 
-                    'text-blue-400'
+                <div key={log.id} className="group flex gap-3 animate-in fade-in slide-in-from-left-4 duration-500 hover:bg-surface-variant/20 p-2 rounded-xl transition-all border border-transparent hover:border-outline-variant/20">
+                  <span className="text-on-surface-variant opacity-20 shrink-0 select-none font-black font-sans text-[9px] mt-0.5 tracking-tighter">[{new Date(log.timestamp).toLocaleTimeString([], { hour12: false, second: '2-digit' })}]</span>
+                  <span className={`shrink-0 font-black uppercase tracking-widest text-[9px] mt-0.5 ${
+                    log.type === 'error' ? 'text-error' : 
+                    log.type === 'warn' ? 'text-tertiary' : 
+                    'text-primary'
                   }`}>
-                    {log.type === 'error' ? '[!!]' : log.type === 'warn' ? '[!?]' : '[OK]'}
+                    {log.type === 'error' ? 'ERR' : log.type === 'warn' ? 'WRN' : 'SYS'}
                   </span>
-                  <span className="text-white/60 flex-1 leading-tight">{log.message}</span>
+                  <span className="text-on-surface font-black tracking-tight flex-1 leading-relaxed opacity-80 group-hover:opacity-100">{log.message}</span>
                 </div>
               ))}
             </div>
 
-            <div className="p-3 bg-black/40 border-t border-white/5 flex items-center gap-3">
-               <span className="text-blue-500 font-bold font-mono text-[10px]">$</span>
-               <div className="flex-1 overflow-hidden">
+            {/* Input Overlay Placeholder */}
+            <div className="px-8 py-5 bg-surface-variant/10 border-t border-outline-variant/30 flex items-center gap-4">
+               <span className="text-primary font-black text-sm select-none">›</span>
+               <div className="flex-1 overflow-hidden flex items-center">
                   <motion.div 
-                    initial={{ opacity: 0 }}
                     animate={{ opacity: [0, 1, 0] }}
                     transition={{ repeat: Infinity, duration: 1 }}
-                    className="w-2 h-4 bg-blue-500/40 inline-block align-middle"
+                    className="w-1.5 h-5 bg-primary/40"
                   />
-                  <span className="text-[10px] font-mono text-white/20 ml-2 italic">Awaiting high-level command override...</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-20 ml-4">Terminal Input Intercepted by Neural Guard</span>
                </div>
+               <Command className="w-4 h-4 text-on-surface-variant opacity-20" />
             </div>
 
-            <div className="px-4 py-2 bg-blue-900/10 flex items-center justify-between text-[8px] font-mono text-blue-400/40 uppercase tracking-widest border-t border-blue-500/10">
-               <div className="flex items-center gap-4">
-                 <span>PID: {Math.floor(Math.random() * 10000)}</span>
+            {/* Footer Actions */}
+            <div className="px-8 py-5 bg-surface flex items-center justify-between border-t border-outline-variant/30">
+               <div className="flex items-center gap-6">
+                 <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-tertiary rounded-full shadow-[0_0_8px_var(--color-tertiary)]" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant opacity-40">PID_4812</span>
+                 </div>
                  <button 
                   onClick={() => {
                     clearAllHistory();
                     setLogs([]);
                     sysLog('Log buffer and temporal history purged.', 'warn');
                   }}
-                  className="flex items-center gap-1 hover:text-blue-200 transition-colors"
+                  className="group flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-on-surface-variant hover:text-error transition-all active:scale-95"
                  >
-                   <Trash2 className="w-2.5 h-2.5" />
-                   Purge Cache
+                   <Trash2 className="w-3.5 h-3.5" />
+                   <span>Clear Buffer</span>
                  </button>
                </div>
-               <span>CORE_V9_RELEASE</span>
+               <span className="text-[9px] font-black uppercase tracking-widest text-primary/40">MASTER_V9_CORE</span>
             </div>
           </motion.div>
         )}

@@ -28,19 +28,23 @@ export default class ErrorArmor extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return this.props.fallback || (
-        <div className="flex flex-col items-center justify-center p-12 bg-[#0d0d0f] border border-red-900/20 rounded-2xl hardware-card">
-          <AlertCircle className="w-12 h-12 text-red-500 mb-4 animate-pulse" />
-          <h2 className="text-sm font-bold uppercase tracking-widest text-red-500 mb-2">Isolation Protocol Active</h2>
-          <p className="text-xs text-[#8e9299] text-center mb-6 max-w-xs">
-            A component failed. The system has isolated the fault to preserve stability.
+        <div className="flex flex-col items-center justify-center p-16 bg-surface-variant/10 border border-error/20 rounded-[3rem] shadow-2xl relative overflow-hidden group">
+          <div className="absolute inset-0 bg-error/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+          <div className="p-6 bg-error/10 rounded-[2rem] text-error mb-8 shadow-inner border border-error/20">
+            <AlertCircle className="w-16 h-16 animate-pulse" />
+          </div>
+          <h2 className="text-xl font-black uppercase tracking-[0.3em] text-error mb-4">Neural_Fault_Detected</h2>
+          <p className="text-sm font-bold text-on-surface-variant opacity-60 text-center mb-10 max-w-sm leading-relaxed tracking-tight">
+            An internal sequence failure occurred. The Neural Guard has isolated the affected logic cluster to maintain platform integrity.
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="flex items-center gap-2 px-6 py-2 bg-[#1f2128] border border-[#2a2d35] hover:border-red-500/50 rounded-lg text-[10px] font-bold uppercase tracking-widest text-gray-300 transition-all"
+            className="flex items-center gap-4 px-10 py-5 bg-error text-on-error hover:bg-error/90 rounded-3xl text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-error/20 transition-all hover:scale-105 active:scale-95"
           >
-            <RefreshCw className="w-3 h-3" />
-            Recarregar Sistema
+            <RefreshCw className="w-4 h-4" />
+            Reboot Protocols
           </button>
+          <p className="mt-10 text-[9px] font-black uppercase tracking-[0.4em] text-outline opacity-30">Status: Fault_Isolated</p>
         </div>
       );
     }

@@ -8,30 +8,31 @@ import {
   Loader2, 
   Play,
   Layers,
-  ArrowBigRightDash,
   ExternalLink,
   UploadCloud,
   X,
   Settings,
   Image as ImageIcon,
-  Clock,
   AlertTriangle,
-  AlertCircle,
   Sparkles,
   Maximize2,
   Minimize2,
   Search,
   FileText,
   Tags,
-  Type
+  ChevronLeft,
+  Video,
+  Monitor
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { VideoProject } from '../core/domain/types';
+import TransitionSelector from './TransitionSelector';
 import confetti from 'canvas-confetti';
 import ThumbnailCreator from './ThumbnailCreator';
 import { youtubeChannelService } from '../core/services/youtubeChannelService';
 import { useSettingsStore } from '../core/store/useSettingsStore';
 import { useYoutubeStore } from '../core/store/useYoutubeStore';
+import { useTheme } from '../core/contexts/ThemeContext';
 
 interface VideoExporterProps {
   project: VideoProject;
@@ -40,6 +41,7 @@ interface VideoExporterProps {
 }
 
 export default function VideoExporter({ project, onUpdate, onPrev }: VideoExporterProps) {
+  const { theme } = useTheme();
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -61,9 +63,66 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadETA, setUploadETA] = useState<string>('');
   const [seoResults, setSeoResults] = useState<{ titles: string[], description: string, tags: string[] } | null>(null);
+  const [thumbnailSuggestions, setThumbnailSuggestions] = useState<any[] | null>(null);
   const [showSEOPanel, setShowSEOPanel] = useState(false);
   const [seoScore, setSeoScore] = useState(0);
+  const [isSuggestingTransition, setIsSuggestingTransition] = useState(false);
   const uploadStartTime = useRef<number>(0);
+
+  const ASPECT_RATIOS = [
+    { id: '16:9', label: 'Widescreen (YouTube)', desc: '1920x1080' },
+    { id: '9:16', label: 'Vertical (TikTok/Shorts)', desc: '1080x1920' },
+    { id: '1:1', label: 'Square (Instagram)', desc: '1080x1080' }
+  ];
+
+  const PRESETS = [
+    { id: 'Youtube', resolution: '1080p', framerate: 30, aspectRatio: '16:9' },
+    { id: 'TikTok', resolution: '1080p', framerate: 60, aspectRatio: '9:16' },
+    { id: 'Instagram', resolution: '1080p', framerate: 30, aspectRatio: '1:1' }
+  ];
+
+  const applyPreset = (presetId: string) => {
+    const preset = PRESETS.find(p => p.id === presetId);
+    if (preset) {
+      onUpdate({
+        ...project,
+        exportSettings: {
+          ...project.exportSettings,
+          resolution: preset.resolution as any,
+          framerate: preset.framerate as any,
+          aspectRatio: preset.aspectRatio as any,
+          preset: presetId as any
+        }
+      });
+    }
+  };
+
+  const handleSuggestTransition = async (sceneIndex: number) => {
+    if (sceneIndex >= project.scenes.length - 1) return;
+    setIsSuggestingTransition(true);
+    try {
+      const resp = await fetch('/api/ai/suggest-transition', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          currentSceneDesc: project.scenes[sceneIndex].description,
+          nextSceneDesc: project.scenes[sceneIndex + 1].description
+        })
+      });
+      const transition = await resp.json();
+      
+      const newScenes = [...project.scenes];
+      newScenes[sceneIndex].transition = transition;
+      onUpdate({ ...project, scenes: newScenes });
+    } catch (err) {
+      console.error('Failed to suggest transition', err);
+    } finally {
+      setIsSuggestingTransition(false);
+    }
+  };
 
   const calculateSEOScore = () => {
       let score = 0;
@@ -317,19 +376,29 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
     setIsOptimizingSEO(true);
     setShowSEOPanel(false);
     try {
-      const provider = getAIProviderInstance();
-      const seo = await provider.optimizeSEO({
-        idea: project.idea,
-        title: project.title,
-        targetAudience: project.targetAudience,
-        keywords: project.keywords
-      });
+      // Parallel execution for higher automation speed
+      const [seo, thumbnailData] = await Promise.all([
+        fetch('/api/ai/seo', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(project)
+        }).then(r => r.json()),
+        fetch('/api/ai/suggest-thumbnail', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(project)
+        }).then(r => r.json())
+      ]);
       
       setSeoResults(seo);
+      setThumbnailSuggestions(thumbnailData.concepts || thumbnailData);
       setShowSEOPanel(true);
-      
-      // Auto-apply if it's the first time and we have a preferred one (optional logic)
-      // For now, let the user choose.
     } catch (err: any) {
       console.error('SEO optimization failed', err);
       alert('SEO Optimization failed: ' + err.message);
@@ -339,699 +408,794 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
   };
 
   return (
-    <div ref={containerRef} className={`flex flex-col h-full gap-8 max-w-4xl mx-auto py-8 transition-all ${isFullscreen ? 'bg-[#0a0a0b] p-12 w-full h-full max-w-full overflow-y-auto z-50 fixed inset-0' : ''}`}>
-      <header className="relative text-center space-y-2">
-        <h2 className="text-4xl font-black tracking-tight uppercase italic">Final Assembly</h2>
-        <p className="text-[#8e9299]">Merging scripts, visuals, and audio into a high-definition final render.</p>
-        <button 
-          onClick={toggleFullscreen}
-          className="absolute right-0 top-0 p-2 text-[#8e9299] hover:text-white hover:bg-[#1f2128] rounded-xl transition-all"
-          title="Toggle Fullscreen"
-        >
-          {isFullscreen ? <Minimize2 className="w-5 h-5"/> : <Maximize2 className="w-5 h-5" />}
-        </button>
+    <div ref={containerRef} className={`flex flex-col h-full gap-8 max-w-7xl mx-auto py-8 w-full transition-all duration-500 ${isFullscreen ? 'bg-surface p-12 w-full h-full max-w-full overflow-y-auto z-50 fixed inset-0' : ''}`}>
+      <header className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 px-4">
+        <div className="space-y-1">
+          <h2 className="text-3xl font-black tracking-tight text-on-surface">Synthesis Terminal</h2>
+          <p className="text-on-surface-variant text-sm font-medium opacity-80 uppercase tracking-widest text-[10px]">Production Assembly & Global Distribution</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={toggleFullscreen}
+            className="p-3 text-on-surface-variant hover:bg-surface-variant rounded-full transition-all active:scale-90"
+            title="Toggle Cinematic View"
+          >
+            {isFullscreen ? <Minimize2 className="w-5 h-5"/> : <Maximize2 className="w-5 h-5" />}
+          </button>
+          <div className="w-px h-6 bg-outline-variant mx-1" />
+          <div className="flex items-center gap-2 text-[10px] font-mono font-bold text-primary bg-primary/5 px-4 py-2 rounded-full border border-primary/20">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <span>SYNC_STATUS: READY</span>
+          </div>
+        </div>
       </header>
 
       <AnimatePresence>
         {isExporting && (
           <motion.div 
-            initial={{ height: 0, opacity: 0, scale: 0.95 }}
-            animate={{ height: 'auto', opacity: 1, scale: 1 }}
-            exit={{ height: 0, opacity: 0, scale: 0.95 }}
-            className="overflow-hidden"
+            initial={{ height: 0, opacity: 0, y: -20 }}
+            animate={{ height: 'auto', opacity: 1, y: 0 }}
+            exit={{ height: 0, opacity: 0, y: -20 }}
+            className="overflow-hidden px-4"
           >
-            <div className="p-6 hardware-card border-blue-500/30 bg-blue-500/5 mb-2">
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                     <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+            <div className="p-8 bg-primary/5 border border-primary/20 rounded-[2.5rem] shadow-sm relative overflow-hidden">
+              {/* Decorative background element */}
+              <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+                <Rocket className="w-48 h-48 -rotate-12" />
+              </div>
+
+              <div className="flex justify-between items-end mb-6 relative">
+                <div className="flex items-center gap-5">
+                   <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                     <Loader2 className="w-6 h-6 animate-spin" />
                    </div>
-                   <div className="flex flex-col">
-                     <span className="text-xs font-bold uppercase tracking-widest text-blue-400">Rendering Module Active</span>
-                     <span className="text-[10px] text-[#8e9299] font-mono">
-                       {progress < 25 ? 'Initializing timeline...' : 
-                        progress < 50 ? 'Merging sequences and transitions...' : 
-                        progress < 75 ? 'Synthesizing main audio track...' : 'Final encoding to VP9/H.264/AAC...'}
-                     </span>
+                   <div className="flex flex-col gap-1">
+                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Neural Rendering Core</span>
+                     <h4 className="text-xl font-bold text-on-surface">
+                       {progress < 25 ? 'Initializing Neural Timeline...' : 
+                        progress < 50 ? 'Merging Vector Sequences...' : 
+                        progress < 75 ? 'Synthesizing Master Audio...' : 'Encoding Final Bitstream...'}
+                     </h4>
                    </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-2xl font-bold font-display text-blue-500 italic">{progress}%</span>
+                  <span className="text-4xl font-black font-mono text-primary italic leading-none">{progress}%</span>
                 </div>
               </div>
-              <div className="h-4 bg-black/40 rounded-full overflow-hidden border border-white/5 p-1">
+
+              <div className="h-3 bg-surface-variant/30 rounded-full overflow-hidden border border-outline-variant/30 p-0.5">
                 <motion.div 
-                  className="h-full bg-gradient-to-r from-blue-600 via-blue-400 to-cyan-400 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                  className="h-full bg-primary rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}
                   transition={{ type: 'spring', damping: 25, stiffness: 120 }}
                 />
               </div>
-              <div className="mt-3 flex justify-between items-center">
-                <span className="text-[9px] text-[#4e515a] font-bold uppercase tracking-[0.2em]">Core Processing Node: Beta-7</span>
-                <div className="flex gap-1">
-                  {[...Array(8)].map((_, i) => (
-                    <div 
-                      key={i} 
-                      className={`w-1 h-3 rounded-sm transition-colors duration-300 ${i < (progress / 12.5) ? 'bg-blue-500' : 'bg-[#1f2128]'}`}
-                    />
-                  ))}
+
+              <div className="mt-6 flex justify-between items-center px-1">
+                <div className="flex items-center gap-3">
+                    <span className="text-[9px] text-on-surface-variant font-black uppercase tracking-[0.2em] opacity-40">Core Cluster</span>
+                    <div className="flex gap-1">
+                      {[...Array(12)].map((_, i) => (
+                        <div 
+                          key={i} 
+                          className={`w-1 h-3 rounded-full transition-all duration-300 ${i < Math.floor(progress / (100 / 12)) ? 'bg-primary scale-x-125' : 'bg-outline-variant/40'}`}
+                        />
+                      ))}
+                    </div>
                 </div>
+                <span className="text-[9px] font-mono font-black text-primary opacity-60 uppercase tracking-widest">VP9_COMPRESSION_ENABLED</span>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-        <div className="hardware-card aspect-video relative overflow-hidden group">
-            {project.scenes.length > 0 && project.scenes[0].imageUrl ? (
-                <img src={project.scenes[0].imageUrl} className="w-full h-full object-cover blur-[2px]" referrerPolicy="no-referrer" />
-            ) : (
-                <div className="w-full h-full bg-[#1f2128]" />
-            )}
-            <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center">
-                {isExporting ? (
-                    <div className="w-48">
-                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest mb-1">
-                            <span>Rendering Module</span>
-                            <span>{progress}%</span>
-                        </div>
-                        <div className="h-2 bg-white/10 rounded-full overflow-hidden border border-white/5">
-                            <div 
-                                className="h-full bg-blue-500 transition-all duration-300" 
-                                style={{ width: `${progress}%` }}
-                            />
-                        </div>
-                    </div>
-                ) : project.status === 'completed' ? (
-                    <div className="text-center animate-bounce-subtle">
-                         <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                         <span className="font-bold uppercase tracking-widest text-sm">Render Success</span>
-                    </div>
-                ) : (
-                    <div className="p-4 bg-white/10 backdrop-blur-md rounded-full group-hover:scale-110 transition-transform cursor-pointer" onClick={startExport}>
-                        <Play className="w-12 h-12 text-white ml-1" />
-                    </div>
-                )}
-            </div>
-            {isExporting && (
-                <div className="absolute top-4 left-4 p-2 bg-black/60 backdrop-blur-sm rounded text-[10px] font-mono border border-white/10">
-                   {progress < 25 ? 'INIT_TIMELINE' : 
-                    progress < 50 ? 'MERGING_SEQUENCES' : 
-                    progress < 75 ? 'SYSTHESIZING_AUDIO' : 'ENCODING_VP9'}
-                </div>
-            )}
-        </div>
-
-        <div className="flex flex-col gap-6">
-            <div className="space-y-4">
-                {/* Validation Checklist */}
-                <div className="p-4 rounded-xl bg-black/20 border border-white/5 space-y-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#4e515a] mb-2">Export Readiness</p>
-                    
-                    <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                             <CheckCircle2 className={`w-3 h-3 ${validation.hasScript ? 'text-green-500' : 'text-[#4e515a]'}`} />
-                             <span className={validation.hasScript ? 'text-white' : 'text-[#8e9299]'}>Narrative Script</span>
-                        </div>
-                        {!validation.hasScript && <AlertTriangle className="w-3 h-3 text-yellow-500" />}
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                             <CheckCircle2 className={`w-3 h-3 ${validation.hasVisuals ? 'text-green-500' : 'text-[#4e515a]'}`} />
-                             <span className={validation.hasVisuals ? 'text-white' : 'text-[#8e9299]'}>Visual Sequences ({project.scenes.filter(s => s.imageUrl).length}/{project.scenes.length})</span>
-                        </div>
-                        {!validation.hasVisuals && <AlertTriangle className="w-3 h-3 text-yellow-500" />}
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                             <CheckCircle2 className={`w-3 h-3 ${validation.hasAudio ? 'text-green-500' : 'text-[#4e515a]'}`} />
-                             <span className={validation.hasAudio ? 'text-white' : 'text-[#8e9299]'}>Audio (Narration & Music)</span>
-                        </div>
-                        {!validation.hasAudio && <AlertTriangle className="w-3 h-3 text-yellow-500" />}
-                    </div>
-                </div>
-
-                {/* Video Metadata Section */}
-                <div className="p-4 rounded-xl bg-black/20 border border-white/5 space-y-3">
-                    <div className="flex items-center justify-between mb-1">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#4e515a]">Video Metadata</p>
-                        <button 
-                            onClick={handleOptimizeSEO}
-                            disabled={isOptimizingSEO}
-                            className="text-[9px] font-bold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1.5 px-2 py-0.5 bg-blue-400/10 rounded-full border border-blue-400/20 disabled:opacity-50"
-                        >
-                            {isOptimizingSEO ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
-                            <span>AI Optimize</span>
-                        </button>
-                    </div>
-
-                    <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-[#8e9299] uppercase">Title</label>
-                        <input 
-                            type="text" 
-                            value={uploadTitle}
-                            onChange={(e) => setUploadTitle(e.target.value)}
-                            className="w-full bg-[#151619] border border-[#2a2d35] rounded-lg px-3 py-2 text-xs text-white focus:border-red-500/50 outline-none transition-all"
-                            placeholder="Video Title..."
-                        />
-                    </div>
-
-                    <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-[#8e9299] uppercase">Description</label>
-                        <textarea 
-                            value={uploadDescription}
-                            onChange={(e) => setUploadDescription(e.target.value)}
-                            className="w-full bg-[#151619] border border-[#2a2d35] rounded-lg px-3 py-2 text-xs text-white focus:border-red-500/50 outline-none transition-all resize-none min-h-[80px] custom-scrollbar"
-                            placeholder="Video Description..."
-                        />
-                    </div>
-
-                    {/* SEO Health Monitor */}
-                    <div className="pt-2">
-                        <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-[8px] font-bold text-[#4e515a] uppercase tracking-[0.2em]">SEO Health Index</span>
-                            <span className={`text-[10px] font-mono font-bold ${seoScore > 80 ? 'text-green-500' : seoScore > 50 ? 'text-blue-500' : 'text-yellow-500'}`}>
-                                {seoScore}%
-                            </span>
-                        </div>
-                        <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                            <motion.div 
-                                initial={{ width: 0 }}
-                                animate={{ width: `${seoScore}%` }}
-                                className={`h-full transition-all duration-1000 ${seoScore > 80 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.3)]' : seoScore > 50 ? 'bg-blue-500' : 'bg-yellow-500'}`}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Main View SEO Suggestions */}
-                    <AnimatePresence>
-                        {showSEOPanel && seoResults && !showYoutubeUploader && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="bg-blue-500/5 border border-blue-500/20 rounded-lg overflow-hidden"
-                            >
-                                <div className="p-3 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <h5 className="text-[9px] font-bold uppercase tracking-widest text-blue-400 flex items-center gap-1.5">
-                                            <Sparkles className="w-2.5 h-2.5" />
-                                            SEO Suggestions
-                                        </h5>
-                                        <button onClick={() => setShowSEOPanel(false)} className="text-[#4e515a] hover:text-white transition-colors">
-                                            <X className="w-3 h-3" />
-                                        </button>
-                                    </div>
-                                    
-                                    <div className="space-y-2">
-                                        <p className="text-[8px] font-bold text-[#4e515a] uppercase">Suggested Titles</p>
-                                        <div className="grid grid-cols-1 gap-1">
-                                            {seoResults.titles.slice(0, 2).map((t, idx) => (
-                                                <button 
-                                                    key={idx}
-                                                    onClick={() => setUploadTitle(t)}
-                                                    className="text-left p-1.5 rounded bg-black/40 border border-white/5 text-[10px] text-gray-400 hover:text-white hover:border-blue-500/30 transition-all truncate"
-                                                >
-                                                    {t}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <button 
-                                            onClick={() => setUploadDescription(seoResults.description)}
-                                            className="flex-1 flex items-center justify-center gap-1.5 p-1.5 rounded bg-blue-500/10 border border-blue-500/20 text-[9px] font-bold text-blue-400 hover:bg-blue-500/20 transition-all"
-                                        >
-                                            <FileText className="w-2.5 h-2.5" />
-                                            Apply AI Description
-                                        </button>
-                                        <button 
-                                            onClick={() => setUploadTags(seoResults.tags.join(', '))}
-                                            className="flex-1 flex items-center justify-center gap-1.5 p-1.5 rounded bg-blue-500/10 border border-blue-500/20 text-[9px] font-bold text-blue-400 hover:bg-blue-500/20 transition-all"
-                                        >
-                                            <Tags className="w-2.5 h-2.5" />
-                                            Apply AI Tags
-                                        </button>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                <div className="flex items-center gap-4">
-                   <div className="w-12 h-12 rounded-xl bg-green-900/20 flex items-center justify-center">
-                        <Layers className="text-green-500 w-6 h-6" />
-                   </div>
-                   <div>
-                       <h4 className="font-bold">Project Integrity</h4>
-                       <p className="text-xs text-[#8e9299]">{project.scenes.length} Scenes / {project.audio?.narrationUrl ? '1 Narration' : 'No Narration'} / {project.audio?.musicUrl ? '1 Music' : 'No Music'}</p>
-                   </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                   <div className="w-12 h-12 rounded-xl bg-blue-900/20 flex items-center justify-center">
-                        <Settings className="text-blue-500 w-6 h-6" />
-                   </div>
-                   <div>
-                       <h4 className="font-bold">Export Specs</h4>
-                       <div className="flex gap-2 mt-1">
-                           <select
-                               value={project.exportSettings?.resolution || systemSettings?.defaultResolution || '1080p'}
-                               onChange={(e) => onUpdate({ ...project, exportSettings: { resolution: e.target.value as any, framerate: project.exportSettings?.framerate || systemSettings?.framerate || 30 } })}
-                               className="bg-[#1f2128] border border-[#2a2d35] rounded px-2 py-1 text-xs focus:border-blue-500 outline-none"
-                           >
-                               <option value="720p">720p</option>
-                               <option value="1080p">1080p</option>
-                               <option value="4k">4k</option>
-                           </select>
-                           <select
-                               value={project.exportSettings?.framerate || systemSettings?.framerate || 30}
-                               onChange={(e) => onUpdate({ ...project, exportSettings: { resolution: project.exportSettings?.resolution || systemSettings?.defaultResolution || '1080p', framerate: parseInt(e.target.value) as any } })}
-                               className="bg-[#1f2128] border border-[#2a2d35] rounded px-2 py-1 text-xs focus:border-blue-500 outline-none"
-                           >
-                               <option value="30">30 fps</option>
-                               <option value="60">60 fps</option>
-                               <option value="24">24 fps</option>
-                           </select>
-                       </div>
-                   </div>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-                <button 
-                    onClick={startExport}
-                    disabled={isExporting || !isReadyToExport}
-                    className="flex flex-col items-center justify-center p-6 hardware-card border-blue-500/30 hover:border-blue-500 bg-blue-500/10 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed"
-                >
-                    <Rocket className={`w-8 h-8 ${isReadyToExport ? 'text-blue-400' : 'text-gray-500'} mb-2`} />
-                    <span className={`text-xs font-bold uppercase tracking-widest ${isReadyToExport ? 'text-blue-400' : 'text-gray-500'}`}>Final Render</span>
-                </button>
-                <button 
-                   onClick={() => {
-                     if (!validation.isRendered) {
-                        alert("You must render the video fully before uploading to YouTube.");
-                        return;
-                     }
-                     setShowYoutubeUploader(true);
-                   }}
-                   disabled={isExporting || !validation.isRendered} 
-                   className={`flex flex-col items-center justify-center p-6 hardware-card transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-30 ${project.status === 'completed' ? 'border-red-500/50 hover:border-red-500 bg-red-500/5' : 'border-[#2a2d35]'}`}
-                >
-                    <Youtube className={`w-8 h-8 ${project.status === 'completed' ? 'text-red-500' : 'text-[#4e515a]'} mb-2`} />
-                    <span className={`text-xs font-bold uppercase tracking-widest ${project.status === 'completed' ? 'text-red-400' : 'text-[#4e515a]'}`}>Direct Upload</span>
-                </button>
-            </div>
-
-            <div className="mt-4 pt-6 border-t border-[#2a2d35]">
-                 <p className="text-[10px] uppercase font-bold text-[#4e515a] mb-4 tracking-widest">Post-Production Actions</p>
-                 <div className="flex gap-4">
-                    <button 
-                         className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#1f2128] hover:bg-[#252832] rounded-xl transition-all text-sm font-bold border border-[#2a2d35]"
-                         title="Soon: Combine all clips into a single MP4"
-                         onClick={() => {
-                            if (!validation.hasVisuals) return;
-                            alert("Single MP4 combination requires a backend encoding service. For now, we will download individual clips.");
-                            project.scenes.forEach((scene, i) => {
-                                if (scene.videoUrl) {
-                                    const a = document.createElement('a');
-                                    a.href = scene.videoUrl;
-                                    a.download = `scene-${i+1}.mp4`;
-                                    a.click();
-                                }
-                            });
-                         }}
-                    >
-                        <Download className="w-4 h-4" />
-                        <span>Download MP4(s)</span>
-                    </button>
-                    <button 
-                         className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#1f2128] hover:bg-[#252832] rounded-xl transition-all text-sm font-bold border border-[#2a2d35]"
-                         onClick={() => {
-                              const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project, null, 2));
-                              const downloadAnchorNode = document.createElement('a');
-                              downloadAnchorNode.setAttribute("href", dataStr);
-                              downloadAnchorNode.setAttribute("download", `project-${project.id}.json`);
-                              document.body.appendChild(downloadAnchorNode);
-                              downloadAnchorNode.click();
-                              downloadAnchorNode.remove();
-                         }}
-                    >
-                        <Download className="w-4 h-4" />
-                        <span>Backup JSON</span>
-                    </button>
-                    <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#1f2128] hover:bg-[#252832] rounded-xl transition-all text-sm font-bold border border-[#2a2d35]">
-                        <Share2 className="w-4 h-4" />
-                        <span>Social Share</span>
-                    </button>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 px-4 flex-1 items-start">
+        {/* Left Col: Master Preview & Integrity */}
+        <div className="flex flex-col gap-10">
+          <div className="m3-card overflow-hidden bg-surface-variant/10 border border-outline-variant/30 group relative">
+              {project.scenes.length > 0 && project.scenes[0].imageUrl ? (
+                  <img src={project.scenes[0].imageUrl} className="w-full aspect-video object-cover transition-all duration-700 group-hover:scale-105" referrerPolicy="no-referrer" alt="Final Synthesis Preview" />
+              ) : (
+                  <div className="w-full aspect-video bg-surface-variant/20 flex items-center justify-center">
+                    <Video className="w-12 h-12 text-on-surface-variant/20" />
+                  </div>
+              )}
+              
+              <div className="absolute inset-0 bg-gradient-to-t from-scrim/80 via-transparent to-scrim/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col items-center justify-center">
+                  {isExporting ? (
+                      <div className="w-48 bg-surface/10 backdrop-blur-md p-4 rounded-3xl border border-white/10 shadow-2xl">
+                          <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] mb-1 text-white">
+                              <span>Synthesizing</span>
+                              <span>{progress}%</span>
+                          </div>
+                          <div className="h-1 bg-white/20 rounded-full overflow-hidden">
+                              <div 
+                                  className="h-full bg-primary transition-all duration-300" 
+                                  style={{ width: `${progress}%` }}
+                              />
+                          </div>
+                      </div>
+                  ) : project.status === 'completed' ? (
+                      <div className="flex flex-col items-center gap-4 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                           <div className="w-20 h-20 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-2xl shadow-primary/40">
+                              <CheckCircle2 className="w-10 h-10" />
+                           </div>
+                           <span className="font-black uppercase tracking-[0.3em] text-white text-xs drop-shadow-md">Master Print Verified</span>
+                      </div>
+                  ) : (
+                      <button 
+                        onClick={startExport}
+                        className="w-20 h-20 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-2xl shadow-primary/40 hover:scale-110 active:scale-95 transition-all"
+                      >
+                          <Play className="w-10 h-10 fill-current ml-1" />
+                      </button>
+                  )}
+              </div>
+              
+              <div className="absolute top-6 left-6 flex items-center gap-2">
+                 <div className="px-3 py-1.5 bg-scrim/60 backdrop-blur-md rounded-full border border-white/10 text-[9px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                    <Monitor className="w-3 h-3" />
+                    <span>Live Monitor</span>
                  </div>
-            </div>
+                 {isExporting && (
+                    <div className="px-3 py-1.5 bg-primary rounded-full text-[9px] font-black uppercase tracking-widest text-on-primary animate-pulse">
+                      Processing
+                    </div>
+                 )}
+              </div>
+          </div>
+
+          <div className="space-y-6">
+              <div className="bg-surface rounded-[2.5rem] p-8 border border-outline-variant/30 shadow-sm">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface-variant mb-6 flex items-center gap-3">
+                    <Layers className="w-4 h-4 text-primary" />
+                    Structural Integrity
+                  </h4>
+                  
+                  <div className="space-y-5">
+                      <div className="flex items-center justify-between group">
+                          <div className="flex items-center gap-4">
+                               <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${validation.hasScript ? 'bg-primary/10 text-primary' : 'bg-surface-variant/20 text-on-surface-variant opacity-40'}`}>
+                                 <FileText className="w-4 h-4" />
+                               </div>
+                               <span className={`text-sm font-bold transition-colors ${validation.hasScript ? 'text-on-surface' : 'text-on-surface-variant'}`}>Narrative Matrix</span>
+                          </div>
+                          {validation.hasScript ? <CheckCircle2 className="w-4 h-4 text-primary" /> : <AlertTriangle className="w-4 h-4 text-error" />}
+                      </div>
+
+                      <div className="flex items-center justify-between group">
+                          <div className="flex items-center gap-4">
+                               <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${validation.hasVisuals ? 'bg-primary/10 text-primary' : 'bg-surface-variant/20 text-on-surface-variant opacity-40'}`}>
+                                 <ImageIcon className="w-4 h-4" />
+                               </div>
+                               <span className={`text-sm font-bold transition-colors ${validation.hasVisuals ? 'text-on-surface' : 'text-on-surface-variant'}`}>
+                                 Visual Sequence Hash ({project.scenes.filter(s => s.imageUrl).length}/{project.scenes.length})
+                               </span>
+                          </div>
+                          {validation.hasVisuals ? <CheckCircle2 className="w-4 h-4 text-primary" /> : <AlertTriangle className="w-4 h-4 text-error" />}
+                      </div>
+
+                      <div className="flex items-center justify-between group">
+                          <div className="flex items-center gap-4">
+                               <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${validation.hasAudio ? 'bg-primary/10 text-primary' : 'bg-surface-variant/20 text-on-surface-variant opacity-40'}`}>
+                                 <Play className="w-4 h-4" />
+                               </div>
+                               <span className={`text-sm font-bold transition-colors ${validation.hasAudio ? 'text-on-surface' : 'text-on-surface-variant'}`}>Audio Harmonic Core</span>
+                          </div>
+                          {validation.hasAudio ? <CheckCircle2 className="w-4 h-4 text-primary" /> : <AlertTriangle className="w-4 h-4 text-error" />}
+                      </div>
+                  </div>
+              </div>
+
+              <div className="bg-surface rounded-[2.5rem] p-8 border border-outline-variant/30 shadow-sm flex flex-col gap-6">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface-variant flex items-center gap-3">
+                  <Settings className="w-4 h-4 text-primary" />
+                  Encoding Parameters
+                </h4>
+                
+                <div className="space-y-4">
+                  <div className="flex gap-2 p-1 bg-surface-variant/10 rounded-2xl border border-outline-variant/30">
+                    {['Youtube', 'TikTok', 'Instagram', 'Custom'].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => p === 'Custom' ? onUpdate({...project, exportSettings: {...project.exportSettings, preset: 'Custom' as any}}) : applyPreset(p)}
+                        className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
+                          (project.exportSettings?.preset || 'Custom') === p 
+                            ? 'bg-primary text-on-primary shadow-sm' 
+                            : 'text-on-surface-variant hover:bg-surface-variant/40'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/60 pl-1">Target Resolution</label>
+                          <select
+                              value={project.exportSettings?.resolution || systemSettings?.defaultResolution || '1080p'}
+                              onChange={(e) => onUpdate({ ...project, exportSettings: { ...project.exportSettings!, resolution: e.target.value as any } })}
+                              className="w-full bg-surface-variant/10 border border-outline-variant/50 rounded-2xl px-5 py-3 text-sm text-on-surface font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none cursor-pointer"
+                          >
+                              <option value="720p">720p (HD Ready)</option>
+                              <option value="1080p">1080p (Full HD)</option>
+                              <option value="4k">4K (Ultra HD)</option>
+                          </select>
+                      </div>
+                      <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/60 pl-1">Temporal Frequency</label>
+                          <select
+                              value={project.exportSettings?.framerate || systemSettings?.framerate || 30}
+                              onChange={(e) => onUpdate({ ...project, exportSettings: { ...project.exportSettings!, framerate: parseInt(e.target.value) as any } })}
+                              className="w-full bg-surface-variant/10 border border-outline-variant/50 rounded-2xl px-5 py-3 text-sm text-on-surface font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none cursor-pointer"
+                          >
+                              <option value="24">24 FPS (Cinematic)</option>
+                              <option value="30">30 FPS (Standard)</option>
+                              <option value="60">60 FPS (Fluid)</option>
+                          </select>
+                      </div>
+                  </div>
+
+                  <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/60 pl-1">Aspect Ratio</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {ASPECT_RATIOS.map(ar => (
+                          <button
+                            key={ar.id}
+                            onClick={() => onUpdate({ ...project, exportSettings: { ...project.exportSettings!, aspectRatio: ar.id as any, preset: 'Custom' } })}
+                            className={`flex flex-col items-center p-3 rounded-2xl border transition-all ${
+                              project.exportSettings?.aspectRatio === ar.id 
+                                ? 'bg-primary/5 border-primary' 
+                                : 'bg-surface-variant/5 border-outline-variant/30 hover:bg-surface-variant/10'
+                            }`}
+                          >
+                            <span className={`text-xs font-black ${project.exportSettings?.aspectRatio === ar.id ? 'text-primary' : 'text-on-surface'}`}>{ar.id}</span>
+                            <span className="text-[8px] font-medium text-on-surface-variant tracking-tighter opacity-60">{ar.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-surface rounded-[2.5rem] p-8 border border-outline-variant/30 shadow-sm space-y-6">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface-variant flex items-center gap-3">
+                  <Layers className="w-4 h-4 text-primary" />
+                  Scene Transitions
+                </h4>
+                <div className="space-y-6 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                  {project.scenes.map((scene, idx) => (
+                    idx < project.scenes.length - 1 && (
+                      <div key={idx} className="p-4 bg-surface-variant/5 rounded-3xl border border-outline-variant/10">
+                        <TransitionSelector 
+                          currentTransition={scene.transition || 'Cut'}
+                          onSelect={(t) => {
+                            const newScenes = [...project.scenes];
+                            newScenes[idx].transition = t;
+                            onUpdate({ ...project, scenes: newScenes });
+                          }}
+                          isSuggesting={isSuggestingTransition}
+                          onSuggest={() => handleSuggestTransition(idx)}
+                        />
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+          </div>
+        </div>
+
+        {/* Right Col: Distribution & SEO */}
+        <div className="flex flex-col gap-10">
+          <div className="bg-surface rounded-[2.5rem] p-8 border border-outline-variant/30 shadow-sm space-y-8">
+              <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface-variant flex items-center gap-3">
+                    <Rocket className="w-4 h-4 text-primary" />
+                    Distribution Assets
+                  </h4>
+                  <button 
+                      onClick={handleOptimizeSEO}
+                      disabled={isOptimizingSEO}
+                      className="m3-button-tonal py-2 px-6 flex items-center gap-2 group transform active:scale-95"
+                  >
+                      {isOptimizingSEO ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                      <span className="text-[10px] font-black uppercase tracking-widest">Neural SEO Optimize</span>
+                  </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between px-1">
+                      <label className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Global Title Path</label>
+                      <span className="text-[10px] font-mono text-on-surface-variant opacity-40 italic">{uploadTitle.length}/100</span>
+                    </div>
+                    <input 
+                        type="text" 
+                        value={uploadTitle}
+                        onChange={(e) => setUploadTitle(e.target.value)}
+                        className="w-full bg-surface-variant/10 border border-outline-variant/50 rounded-2xl px-5 py-4 text-sm text-on-surface font-bold focus:ring-4 focus:ring-primary/10 outline-none transition-all"
+                        placeholder="Define your narrative identity..."
+                    />
+                </div>
+
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between px-1">
+                      <label className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Atmospheric Description</label>
+                      <span className="text-[10px] font-mono text-on-surface-variant opacity-40 italic">{uploadDescription.length}/5000</span>
+                    </div>
+                    <textarea 
+                        value={uploadDescription}
+                        onChange={(e) => setUploadDescription(e.target.value)}
+                        className="w-full bg-surface-variant/10 border border-outline-variant/50 rounded-[2rem] px-6 py-5 text-sm text-on-surface font-medium focus:ring-4 focus:ring-primary/10 outline-none transition-all resize-none min-h-[160px] custom-scrollbar leading-relaxed"
+                        placeholder="Narrate the intent of your creation..."
+                    />
+                </div>
+
+                <div className="p-6 bg-surface-variant/5 rounded-3xl border border-outline-variant/20 relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-4">
+                        <span className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Audience Reach Potential</span>
+                        <span className={`text-xs font-mono font-black ${seoScore > 80 ? 'text-primary' : seoScore > 50 ? 'text-secondary' : 'text-error'}`}>
+                            {seoScore}%
+                        </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-surface-variant/30 rounded-full overflow-hidden">
+                        <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${seoScore}%` }}
+                            className={`h-full transition-all duration-1000 ${seoScore > 80 ? 'bg-primary' : seoScore > 50 ? 'bg-secondary' : 'bg-error'}`}
+                        />
+                    </div>
+                    <p className="text-[9px] mt-3 font-medium text-on-surface-variant/60 leading-relaxed uppercase tracking-widest italic">
+                      {seoScore > 80 ? 'Optimal metadata saturation observed' : 'Metadata density optimization required'}
+                    </p>
+                </div>
+              </div>
+
+              <AnimatePresence>
+                  {showSEOPanel && seoResults && !showYoutubeUploader && (
+                      <motion.div
+                          initial={{ height: 0, opacity: 0, scale: 0.95 }}
+                          animate={{ height: 'auto', opacity: 1, scale: 1 }}
+                          exit={{ height: 0, opacity: 0, scale: 0.95 }}
+                          className="bg-primary/5 border border-primary/20 rounded-[2rem] overflow-hidden shadow-inner"
+                      >
+                          <div className="p-8 space-y-6">
+                              <div className="flex items-center justify-between">
+                                  <h5 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-3">
+                                      <Sparkles className="w-4 h-4" />
+                                      AI Strategy Laboratory
+                                  </h5>
+                                  <button onClick={() => setShowSEOPanel(false)} className="p-2 hover:bg-primary/10 rounded-full transition-colors">
+                                      <X className="w-4 h-4 text-on-surface-variant" />
+                                  </button>
+                              </div>
+                              
+                              <div className="space-y-4">
+                                  <p className="text-[9px] font-black text-on-surface-variant uppercase tracking-widest opacity-60 ml-1">Proposed Neural Titles</p>
+                                  <div className="grid grid-cols-1 gap-2">
+                                      {seoResults.titles.slice(0, 3).map((t, idx) => (
+                                          <button 
+                                              key={idx}
+                                              onClick={() => setUploadTitle(t)}
+                                              className="text-left p-4 rounded-2xl bg-surface/80 border border-outline-variant/40 text-sm font-bold text-on-surface hover:text-primary hover:border-primary/40 hover:bg-surface transition-all truncate shadow-sm active:scale-[0.99]"
+                                          >
+                                              {t}
+                                          </button>
+                                      ))}
+                                  </div>
+                              </div>
+
+                              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                                  <button 
+                                      onClick={() => setUploadDescription(seoResults.description)}
+                                      className="flex-1 m3-button-tonal py-3 px-6 flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest"
+                                  >
+                                      <FileText className="w-4 h-4" />
+                                      Inject AI Narrative
+                                  </button>
+                                  <button 
+                                      onClick={() => setUploadTags(seoResults.tags.join(', '))}
+                                      className="flex-1 m3-button-tonal py-3 px-6 flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest"
+                                  >
+                                      <Tags className="w-4 h-4" />
+                                      Synchronize Tags
+                                  </button>
+                              </div>
+
+                              {thumbnailSuggestions && (
+                                <div className="space-y-4 pt-6 border-t border-outline-variant/20">
+                                   <p className="text-[9px] font-black text-on-surface-variant uppercase tracking-widest opacity-60 ml-1">Thumbnail Strategy Revisions</p>
+                                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                     {thumbnailSuggestions.slice(0, 3).map((concept, idx) => (
+                                       <div key={idx} className="p-4 rounded-2xl bg-surface/50 border border-outline-variant/30 space-y-3">
+                                         <p className="text-[10px] font-bold text-on-surface leading-tight h-12 overflow-hidden">{concept.hook || concept.visualHook}</p>
+                                         <div className="flex gap-1">
+                                           {concept.palette?.map((c: string, i: number) => (
+                                             <div key={i} className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: c }} />
+                                           ))}
+                                         </div>
+                                         <button 
+                                           onClick={() => setShowThumbnailCreator(true)}
+                                           className="w-full py-2 bg-primary/10 text-primary text-[8px] font-black uppercase tracking-widest rounded-lg hover:bg-primary/20 transition-colors"
+                                         >
+                                           Initialize Creator
+                                         </button>
+                                       </div>
+                                     ))}
+                                   </div>
+                                </div>
+                              )}
+                          </div>
+                      </motion.div>
+                  )}
+              </AnimatePresence>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+              <button 
+                  onClick={startExport}
+                  disabled={isExporting || !isReadyToExport}
+                  className="group flex flex-col items-center justify-center p-10 bg-primary rounded-[2.5rem] border border-primary hover:bg-primary/95 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-20 disabled:grayscale disabled:cursor-not-allowed shadow-xl shadow-primary/20"
+              >
+                  <Rocket className="w-10 h-10 text-on-primary mb-3 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-on-primary">Initiate Synthesis</span>
+              </button>
+              <button 
+                 onClick={() => {
+                   if (!validation.isRendered) {
+                      alert("Synthesis required before global distribution.");
+                      return;
+                   }
+                   setShowYoutubeUploader(true);
+                 }}
+                 disabled={isExporting || !validation.isRendered} 
+                 className={`group flex flex-col items-center justify-center p-10 rounded-[2.5rem] transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-20 shadow-xl ${project.status === 'completed' ? 'bg-surface border border-error/50 text-error hover:border-error shadow-error/10' : 'bg-surface-variant/20 border border-outline-variant/30 text-on-surface-variant opacity-40'}`}
+              >
+                  <Youtube className={`w-10 h-10 mb-3 transition-transform group-hover:scale-110 ${project.status === 'completed' ? 'text-error fill-current' : ''}`} />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">Global Broadcast</span>
+              </button>
+          </div>
+
+          <div className="pt-10 border-t border-outline-variant/30">
+               <p className="text-[10px] uppercase font-black text-on-surface-variant mb-6 tracking-[0.3em] ml-1">Terminal Output Modules</p>
+               <div className="grid grid-cols-3 gap-4">
+                  {[
+                    { label: 'Master MP4', icon: Download, action: () => {
+                      if (!validation.hasVisuals) return;
+                      alert("Batch export initialized. Browser-level limitations may apply to large sequences.");
+                      project.scenes.forEach((scene, i) => {
+                          if (scene.videoUrl) {
+                              const a = document.createElement('a');
+                              a.href = scene.videoUrl;
+                              a.download = `sequence-${i+1}.mp4`;
+                              a.click();
+                          }
+                      });
+                    }},
+                    { label: 'Secure JSON', icon: Download, action: () => {
+                      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project, null, 2));
+                      const downloadAnchorNode = document.createElement('a');
+                      downloadAnchorNode.setAttribute("href", dataStr);
+                      downloadAnchorNode.setAttribute("download", `blueprint-${project.id}.json`);
+                      document.body.appendChild(downloadAnchorNode);
+                      downloadAnchorNode.click();
+                      downloadAnchorNode.remove();
+                    }},
+                    { label: 'Project Vault', icon: Share2, action: () => alert('Project Vault encryption in progress...') }
+                  ].map((item, idx) => (
+                    <button 
+                      key={idx}
+                      onClick={item.action}
+                      className="flex flex-col items-center gap-3 p-6 bg-surface-variant/5 hover:bg-surface-variant/10 rounded-[2rem] border border-outline-variant/30 transition-all group active:scale-95 shadow-sm"
+                    >
+                      <item.icon className="w-5 h-5 text-on-surface-variant group-hover:text-primary transition-colors" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">{item.label}</span>
+                    </button>
+                  ))}
+               </div>
+          </div>
         </div>
       </div>
 
-      <div className="mt-8 flex justify-between items-center text-[#4e515a]">
-          <button onClick={onPrev} className="text-xs flex items-center gap-1 hover:text-white transition-colors">
-              <ArrowBigRightDash className="w-4 h-4 rotate-180" />
-              Adjust Audio Specs
+      <footer className="mt-12 flex justify-between items-center px-4 border-t border-outline-variant/20 pt-8 mb-10">
+          <button onClick={onPrev} className="m3-button-tonal px-8 py-3 flex items-center gap-3 group transition-all">
+              <ChevronLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
+              <span className="text-[11px] font-black uppercase tracking-widest">Audio Matrix</span>
           </button>
-          <div className="flex items-center gap-2 text-[10px] font-mono">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              FACTORY_READY_NODE_0
+          <div className="flex items-center gap-4 text-[9px] font-mono font-black text-on-surface-variant/40 tracking-widest">
+              <div className="flex gap-1">
+                {[1,2,3].map(i => <div key={i} className="w-1 h-1 rounded-full bg-primary/20" />)}
+              </div>
+              <span>READY_FOR_DEPLOYMENT_V_2024</span>
           </div>
-      </div>
+      </footer>
 
-      {/* Youtube Upload Modal */}
+      {/* Youtube Upload Modal (M3 Refined) */}
       <AnimatePresence>
         {showYoutubeUploader && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim/40 backdrop-blur-sm">
             <motion.div 
-               initial={{ scale: 0.95, opacity: 0 }}
-               animate={{ scale: 1, opacity: 1 }}
-               exit={{ scale: 0.95, opacity: 0 }}
-               className="hardware-card w-full max-w-2xl bg-[#0a0a0b] flex flex-col max-h-[90vh] overflow-hidden"
+               initial={{ scale: 0.95, opacity: 0, y: 20 }}
+               animate={{ scale: 1, opacity: 1, y: 0 }}
+               exit={{ scale: 0.95, opacity: 0, y: 20 }}
+               className="bg-surface w-full max-w-3xl rounded-[2.5rem] flex flex-col max-h-[90vh] overflow-hidden shadow-2xl border border-outline-variant/30"
             >
-              <div className="p-6 border-b border-[#2a2d35] flex items-center justify-between bg-[#1f2128]">
-                <div className="flex items-center gap-3">
-                  <Youtube className="w-6 h-6 text-red-500" />
-                  <h3 className="font-bold uppercase tracking-widest">Publicar no YouTube</h3>
+              <div className="px-8 py-6 border-b border-outline-variant/30 flex items-center justify-between bg-surface shadow-sm z-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-error/10 flex items-center justify-center text-error">
+                    <Youtube className="w-6 h-6 fill-current" />
+                  </div>
+                  <div className="flex flex-col">
+                    <h3 className="text-xl font-black tracking-tight text-on-surface">Global Distribution Hub</h3>
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-on-surface-variant opacity-60">YouTube API Interlink Active</p>
+                  </div>
                 </div>
-                <button onClick={() => setShowYoutubeUploader(false)} className="p-2 hover:bg-[#2a2d35] rounded-full">
-                  <X className="w-5 h-5" />
+                <button onClick={() => setShowYoutubeUploader(false)} className="p-3 hover:bg-surface-variant rounded-full transition-colors active:scale-90">
+                  <X className="w-5 h-5 text-on-surface-variant" />
                 </button>
               </div>
 
-              <div className="p-8 overflow-y-auto custom-scrollbar space-y-6">
+              <div className="p-8 overflow-y-auto custom-scrollbar space-y-10 bg-surface">
                 {!hasToken ? (
-                   <div className="text-center p-8 space-y-4">
-                     <Youtube className="w-16 h-16 text-red-500 mx-auto mb-4 opacity-20" />
-                     <h4 className="font-bold">Login Necessário</h4>
-                     <p className="text-sm text-[#8e9299]">É necessário autorizar o acesso ao YouTube para realizar o envio direto.</p>
+                   <div className="text-center py-16 px-8 flex flex-col items-center">
+                     <div className="w-24 h-24 rounded-full bg-surface-variant flex items-center justify-center mb-8">
+                       <Rocket className="w-12 h-12 text-on-surface-variant/20" />
+                     </div>
+                     <h4 className="text-2xl font-black text-on-surface mb-2">Authentication Required</h4>
+                     <p className="text-on-surface-variant max-w-sm mb-10 leading-relaxed font-medium">To synchronize with global content grids, you must authorize your Google account with our production terminal.</p>
                      <button 
                        onClick={handleConnect}
-                       className="bg-[#1f2128] hover:bg-[#2a2d35] border border-[#2a2d35] px-6 py-3 rounded-xl font-bold transition-all"
+                       className="m3-button-primary px-12 py-4 flex items-center gap-4 group"
                      >
-                       Conectar com Google
+                       <Youtube className="w-5 h-5 fill-current" />
+                       <span className="font-black uppercase tracking-widest text-xs">Secure Link via Cloud OAuth</span>
                      </button>
                    </div>
                 ) : channels.length === 0 ? (
-                   <div className="text-center p-8">
-                     <Youtube className="w-16 h-16 opacity-20 mx-auto mb-4" />
-                     <h4 className="font-bold mb-2">Nenhum canal configurado</h4>
-                     <p className="text-sm text-[#8e9299]">Vá em "Canais do YouTube" no menu lateral para adicionar o seu perfil.</p>
+                   <div className="text-center py-16 px-8 flex flex-col items-center">
+                     <Youtube className="w-24 h-24 opacity-10 mb-8" />
+                     <h4 className="text-2xl font-black text-on-surface mb-2">No Verified Signal</h4>
+                     <p className="text-on-surface-variant max-w-sm mb-8 leading-relaxed font-medium">No YouTube channels detected. Initialize your presence in the Sidebar Settings terminal.</p>
                    </div>
                 ) : (
                   <>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-4 bg-[#151619] border border-[#2a2d35] rounded-2xl">
-                          <div className="flex items-center gap-4">
-                              <div className="relative w-12 h-12 flex items-center justify-center">
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between p-8 bg-primary/5 rounded-[2.5rem] border border-primary/20 relative overflow-hidden group">
+                          {/* Decorative hex pattern */}
+                          <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px]" />
+                          
+                          <div className="flex items-center gap-6 relative">
+                              <div className="relative w-16 h-16 flex items-center justify-center">
                                   <svg className="w-full h-full -rotate-90">
-                                      <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-[#1f2128]" />
+                                      <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-on-primary/10" />
                                       <motion.circle 
-                                          cx="24" cy="24" r="20" 
-                                          stroke="currentColor" strokeWidth="4" 
+                                          cx="32" cy="32" r="28" 
+                                          stroke="currentColor" strokeWidth="6" 
                                           fill="transparent" 
-                                          strokeDasharray={125.6}
-                                          initial={{ strokeDashoffset: 125.6 }}
-                                          animate={{ strokeDashoffset: 125.6 - (125.6 * seoScore) / 100 }}
-                                          className={seoScore > 80 ? 'text-green-500' : seoScore > 50 ? 'text-yellow-500' : 'text-red-500'} 
+                                          strokeDasharray={175.9}
+                                          initial={{ strokeDashoffset: 175.9 }}
+                                          animate={{ strokeDashoffset: 175.9 - (175.9 * seoScore) / 100 }}
+                                          className={`transition-all duration-1000 ${seoScore > 80 ? 'text-primary' : seoScore > 50 ? 'text-secondary' : 'text-error'}`} 
                                       />
                                   </svg>
-                                  <span className={`absolute text-xs font-bold ${seoScore > 80 ? 'text-green-500' : seoScore > 50 ? 'text-yellow-500' : 'text-red-500'}`}>{seoScore}</span>
+                                  <span className={`absolute text-sm font-black font-mono ${seoScore > 80 ? 'text-primary' : seoScore > 50 ? 'text-secondary' : 'text-error'}`}>{seoScore}%</span>
                               </div>
                               <div>
-                                  <h4 className="text-sm font-bold uppercase tracking-widest leading-none">SEO Visibility Score</h4>
-                                  <p className="text-[10px] text-[#8e9299] mt-1 font-mono uppercase">AI_ALGORITHM_READY: {seoScore > 75 ? 'TRUE' : 'FALSE'}</p>
-                              </div>
-                          </div>
-                          <div className="text-right">
-                              <span className="text-[8px] font-bold uppercase text-[#4e515a] tracking-widest block mb-1">Reach Potential</span>
-                              <div className="flex gap-1 justify-end">
-                                  {[...Array(5)].map((_, i) => (
-                                      <div key={i} className={`w-2 h-1.5 rounded-sm ${i < (seoScore / 20) ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-[#2a2d35]'}`} />
-                                  ))}
+                                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-on-surface">Algorithmic Visibility Index</h4>
+                                  <p className="text-[10px] text-on-surface-variant font-bold mt-1 opacity-60 uppercase tracking-widest italic">NEURAL_SEO_OPTIMIZATION_SYNCED: {seoScore > 75 ? 'TRUE' : 'FALSE'}</p>
                               </div>
                           </div>
                       </div>
 
-                      <label className="block text-xs font-bold uppercase text-[#8e9299]">Canal de Destino</label>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {channels.map(ch => (
-                          <div 
-                            key={ch.id} 
-                            onClick={() => setSelectedChannelId(ch.id)}
-                            className={`p-4 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${
-                              selectedChannelId === ch.id ? 'border-red-500 bg-red-900/10' : 'border-[#2a2d35] hover:border-gray-500 bg-[#1f2128]'
-                            }`}
-                          >
-                            <img src={ch.profileImageUrl || `https://ui-avatars.com/api/?name=${ch.name}`} className="w-10 h-10 rounded-full" />
-                            <div className="flex-1 truncate">
-                              <p className="font-bold text-sm truncate">{ch.name}</p>
-                              <p className="text-xs text-[#8e9299] truncate">{ch.tags?.length} tags automáticas</p>
-                            </div>
-                            {selectedChannelId === ch.id && <CheckCircle2 className="w-5 h-5 text-red-500" />}
-                          </div>
-                        ))}
+                      <div className="space-y-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 ml-1">Destination Channel Signal</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {channels.map(ch => (
+                            <button 
+                              key={ch.id} 
+                              onClick={() => setSelectedChannelId(ch.id)}
+                              className={`p-5 rounded-[2rem] border flex items-center gap-4 cursor-pointer transition-all active:scale-[0.98] ${
+                                selectedChannelId === ch.id 
+                                  ? 'border-primary bg-primary/10 shadow-lg shadow-primary/5' 
+                                  : 'border-outline-variant/30 hover:border-outline-variant bg-surface group'
+                              }`}
+                            >
+                              <div className="relative">
+                                <img src={ch.profileImageUrl || `https://ui-avatars.com/api/?name=${ch.name}`} className="w-12 h-12 rounded-full border-2 border-surface shadow-md" alt={ch.name} />
+                                {selectedChannelId === ch.id && (
+                                  <div className="absolute -bottom-1 -right-1 bg-primary text-on-primary rounded-full p-0.5 shadow-sm">
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 text-left truncate">
+                                <p className={`font-black text-sm truncate ${selectedChannelId === ch.id ? 'text-primary' : 'text-on-surface group-hover:text-primary'}`}>{ch.name}</p>
+                                <p className="text-[10px] font-bold text-on-surface-variant opacity-40 uppercase tracking-wider">{ch.tags?.length || 0} Neural Keywords Injectors</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
-                    <div>
-                      <div className="flex items-center justify-between gap-4 mb-2">
-                          <label className="block text-xs font-bold uppercase text-[#8e9299]">Título do Vídeo</label>
-                          <button 
-                            onClick={handleOptimizeSEO}
-                            disabled={isOptimizingSEO}
-                            className="text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-2 px-3 py-1 bg-blue-400/10 rounded-full border border-blue-400/20 disabled:opacity-50"
-                          >
-                            {isOptimizingSEO ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                            <span>{seoResults ? 'Regenerate SEO' : 'Auto-Optimize SEO'}</span>
-                          </button>
-                      </div>
+                    <div className="space-y-8">
+                       <div className="space-y-4">
+                          <div className="flex items-center justify-between gap-4 px-1">
+                              <label className="text-[10px] font-black uppercase text-on-surface-variant opacity-60 tracking-widest">Global Meta Title</label>
+                              <button 
+                                onClick={handleOptimizeSEO}
+                                disabled={isOptimizingSEO}
+                                className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 rounded-full border border-primary/20 text-[10px] font-black text-primary uppercase tracking-widest hover:bg-primary/20 transition-all disabled:opacity-50"
+                              >
+                                {isOptimizingSEO ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                                <span>{seoResults ? 'Recalculate Path' : 'Neural Matrix SEO'}</span>
+                              </button>
+                          </div>
+                          <input 
+                            type="text" 
+                            value={uploadTitle}
+                            onChange={e => setUploadTitle(e.target.value)}
+                            className="w-full bg-surface-variant/10 border border-outline-variant/50 rounded-2xl px-6 py-4 text-sm font-bold text-on-surface focus:ring-4 focus:ring-primary/10 outline-none transition-all"
+                            placeholder="Primary transmission ID..."
+                          />
+                       </div>
 
-                      {/* SEO Suggestions Panel */}
-                      <AnimatePresence>
-                        {showSEOPanel && seoResults && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="mb-6 bg-blue-500/5 border border-blue-500/20 rounded-xl overflow-hidden"
-                          >
-                            <div className="p-4 space-y-4">
-                              <div className="flex items-center justify-between">
-                                <h5 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 flex items-center gap-2">
-                                  <Sparkles className="w-3 h-3" />
-                                  AI SEO Laboratory
-                                </h5>
-                                <button onClick={() => setShowSEOPanel(false)} className="text-gray-500 hover:text-white">
-                                  <X className="w-3 h-3" />
-                                </button>
+                       <div className="space-y-4">
+                          <label className="text-[10px] font-black uppercase text-on-surface-variant opacity-60 tracking-widest ml-1">Universal Description Field</label>
+                          <textarea 
+                            value={uploadDescription}
+                            onChange={e => setUploadDescription(e.target.value)}
+                            rows={4}
+                            className="w-full bg-surface-variant/10 border border-outline-variant/50 rounded-[2rem] px-6 py-5 text-sm font-medium text-on-surface focus:ring-4 focus:ring-primary/10 outline-none transition-all custom-scrollbar resize-none leading-relaxed"
+                            placeholder="Narrate the technical intent..."
+                          />
+                       </div>
+
+                       <div className="space-y-4">
+                          <label className="text-[10px] font-black uppercase text-on-surface-variant opacity-60 tracking-widest ml-1">Neural Keyword Tagging</label>
+                          <input 
+                            type="text" 
+                            value={uploadTags}
+                            onChange={e => setUploadTags(e.target.value)}
+                            placeholder="Format: keyword_a, keyword_b, matrix_signal"
+                            className="w-full bg-surface-variant/10 border border-outline-variant/50 rounded-2xl px-6 py-4 text-sm font-mono text-on-surface outline-none transition-all focus:ring-4 focus:ring-primary/10"
+                          />
+                       </div>
+
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          <div className="space-y-4">
+                            <label className="text-[10px] font-black uppercase text-on-surface-variant opacity-60 tracking-widest ml-1">Distribution Visibility</label>
+                            <div className="relative">
+                              <select 
+                                value={privacyStatus}
+                                onChange={e => setPrivacyStatus(e.target.value)}
+                                className="w-full bg-surface-variant/10 border border-outline-variant/50 rounded-2xl px-6 py-4 text-sm font-bold text-on-surface appearance-none cursor-pointer outline-none focus:ring-4 focus:ring-primary/10"
+                              >
+                                <option value="private">Private (Stealth Node)</option>
+                                <option value="unlisted">Unlisted (Hidden Link)</option>
+                                <option value="public">Public (Global Broadcast)</option>
+                              </select>
+                              <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+                                <Rocket className="w-4 h-4" />
                               </div>
+                            </div>
+                          </div>
+                          <div className="space-y-4">
+                            <label className="text-[10px] font-black uppercase text-on-surface-variant opacity-60 tracking-widest ml-1">Broadcast Category</label>
+                            <div className="relative">
+                              <select 
+                                value={categoryId}
+                                onChange={e => setCategoryId(e.target.value)}
+                                className="w-full bg-surface-variant/10 border border-outline-variant/50 rounded-2xl px-6 py-4 text-sm font-bold text-on-surface appearance-none cursor-pointer outline-none focus:ring-4 focus:ring-primary/10"
+                              >
+                                {YOUTUBE_CATEGORIES.map(cat => (
+                                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                ))}
+                              </select>
+                              <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+                                <Layers className="w-4 h-4" />
+                              </div>
+                            </div>
+                          </div>
+                       </div>
 
-                              <div className="space-y-2">
-                                <p className="text-[9px] font-bold text-[#4e515a] uppercase tracking-wider">Suggested Titles</p>
-                                <div className="space-y-1.5">
-                                  {seoResults.titles.map((t, idx) => (
-                                    <button
-                                      key={idx}
-                                      onClick={() => {
-                                        setUploadTitle(t);
-                                        // Optional: mark as selected
-                                      }}
-                                      className={`w-full text-left p-2.5 rounded-lg text-xs transition-all border ${
-                                        uploadTitle === t 
-                                          ? 'bg-blue-500/10 border-blue-500 text-blue-400' 
-                                          : 'bg-black/20 border-white/5 text-gray-400 hover:border-white/10 hover:text-gray-200'
-                                      }`}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <div className={`w-1.5 h-1.5 rounded-full ${uploadTitle === t ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-[#4e515a]'}`} />
-                                        {t}
-                                      </div>
-                                    </button>
-                                  ))}
+                       <div className="space-y-6">
+                          <div className="flex items-center justify-between px-1">
+                            <label className="text-[10px] font-black uppercase text-on-surface-variant opacity-60 tracking-widest">Master Visual Static (Thumbnail)</label>
+                            <button 
+                              onClick={() => setShowThumbnailCreator(true)}
+                              className="text-[10px] font-black uppercase text-primary hover:text-primary/80 transition-colors flex items-center gap-2"
+                            >
+                              <ImageIcon className="w-3 h-3" />
+                              Creative Lab
+                            </button>
+                          </div>
+                          <div className={`rounded-[2.5rem] border-2 border-dashed transition-all duration-500 overflow-hidden ${thumbnailFile ? 'border-primary/40 bg-surface' : 'border-outline-variant/40 bg-surface-variant/5 hover:bg-surface-variant/10 hover:border-primary/30'}`}>
+                            {thumbnailFile ? (
+                              <div className="relative w-full aspect-video rounded-[2.5rem] overflow-hidden group">
+                                <img 
+                                  src={thumbnailPreviewUrl || ''} 
+                                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                  alt="Master Visual Preview"
+                                />
+                                <div className="absolute inset-0 bg-scrim/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all duration-500 backdrop-blur-sm">
+                                  <button 
+                                    onClick={() => setThumbnailFile(null)}
+                                    className="w-14 h-14 bg-error text-on-error rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all mb-4"
+                                  >
+                                    <X className="w-6 h-6" />
+                                  </button>
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-white">Discard Signal</span>
                                 </div>
                               </div>
-
-                              <div className="grid grid-cols-2 gap-3">
-                                <button
-                                  onClick={() => setUploadDescription(seoResults.description)}
-                                  className="flex items-center gap-2 p-2.5 rounded-lg border border-white/5 bg-black/20 hover:border-blue-500/30 transition-all group"
-                                >
-                                  <div className="p-1.5 rounded bg-gray-900 group-hover:bg-blue-500/20 transition-colors">
-                                    <FileText className="w-3 h-3 text-gray-500 group-hover:text-blue-400" />
-                                  </div>
-                                  <div className="text-left">
-                                    <p className="text-[8px] font-bold uppercase text-[#4e515a]">Description</p>
-                                    <p className="text-[10px] text-gray-400 font-bold group-hover:text-blue-400">Apply AI Meta</p>
-                                  </div>
-                                </button>
-                                <button
-                                  onClick={() => setUploadTags(seoResults.tags.join(', '))}
-                                  className="flex items-center gap-2 p-2.5 rounded-lg border border-white/5 bg-black/20 hover:border-blue-500/30 transition-all group"
-                                >
-                                  <div className="p-1.5 rounded bg-gray-900 group-hover:bg-blue-500/20 transition-colors">
-                                    <Tags className="w-3 h-3 text-gray-500 group-hover:text-blue-400" />
-                                  </div>
-                                  <div className="text-left">
-                                    <p className="text-[8px] font-bold uppercase text-[#4e515a]">Tags</p>
-                                    <p className="text-[10px] text-gray-400 font-bold group-hover:text-blue-400">Apply AI Keywords</p>
-                                  </div>
-                                </button>
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
-                      <input 
-                        type="text" 
-                        value={uploadTitle}
-                        onChange={e => setUploadTitle(e.target.value)}
-                        className="w-full bg-[#151619] border border-[#2a2d35] rounded-xl px-4 py-3 text-sm focus:border-red-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold uppercase text-[#8e9299] mb-2">Descrição</label>
-                      <textarea 
-                        value={uploadDescription}
-                        onChange={e => setUploadDescription(e.target.value)}
-                        rows={4}
-                        className="w-full bg-[#151619] border border-[#2a2d35] rounded-xl px-4 py-3 text-sm focus:border-red-500 focus:outline-none custom-scrollbar resize-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold uppercase text-[#8e9299] mb-2">Tags (separadas por vírgula)</label>
-                      <input 
-                        type="text" 
-                        value={uploadTags}
-                        onChange={e => setUploadTags(e.target.value)}
-                        placeholder="ex: tecnologia, vídeo, tutorial"
-                        className="w-full bg-[#151619] border border-[#2a2d35] rounded-xl px-4 py-3 text-sm focus:border-red-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold uppercase text-[#8e9299] mb-2">Privacidade</label>
-                        <select 
-                          value={privacyStatus}
-                          onChange={e => setPrivacyStatus(e.target.value)}
-                          className="w-full bg-[#151619] border border-[#2a2d35] rounded-xl px-4 py-3 text-sm focus:border-red-500 focus:outline-none appearance-none"
-                        >
-                          <option value="private">Privado</option>
-                          <option value="unlisted">Não Listado</option>
-                          <option value="public">Público</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold uppercase text-[#8e9299] mb-2">Categoria</label>
-                        <select 
-                          value={categoryId}
-                          onChange={e => setCategoryId(e.target.value)}
-                          className="w-full bg-[#151619] border border-[#2a2d35] rounded-xl px-4 py-3 text-sm focus:border-red-500 focus:outline-none appearance-none"
-                        >
-                          {YOUTUBE_CATEGORIES.map(cat => (
-                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="block text-xs font-bold uppercase text-[#8e9299]">Thumbnail Personalizada (Opcional)</label>
-                        <button 
-                          onClick={() => setShowThumbnailCreator(true)}
-                          className="text-[10px] uppercase font-bold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
-                        >
-                          <Settings className="w-3 h-3" />
-                          Criar Thumbnail
-                        </button>
-                      </div>
-                      <div className="hardware-card border-dashed p-4 flex flex-col items-center justify-center gap-3 bg-[#151619]/50">
-                        {thumbnailFile ? (
-                          <div className="relative w-full aspect-video rounded-lg overflow-hidden group">
-                            <img 
-                              src={thumbnailPreviewUrl || ''} 
-                              className="w-full h-full object-cover" 
-                            />
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                              <button 
-                                onClick={() => setThumbnailFile(null)}
-                                className="p-2 bg-red-500 rounded-full text-white shadow-xl"
-                              >
-                                <X className="w-5 h-5" />
-                              </button>
-                            </div>
+                            ) : (
+                              <label className="w-full aspect-video flex flex-col items-center justify-center cursor-pointer p-8 relative overflow-hidden group">
+                                <div className="p-6 bg-primary/10 rounded-full mb-6 group-hover:scale-110 transition-transform duration-500">
+                                   <ImageIcon className="w-8 h-8 text-primary" />
+                                </div>
+                                <h5 className="text-sm font-bold text-on-surface mb-2">Inject Manual Asset</h5>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-40">PNG / JPG Matrix (Target: 1280x720)</p>
+                                <input 
+                                  type="file" 
+                                  accept="image/*" 
+                                  className="hidden" 
+                                  onChange={e => {
+                                    if (e.target.files?.[0]) setThumbnailFile(e.target.files[0]);
+                                  }}
+                                />
+                              </label>
+                            )}
                           </div>
-                        ) : (
-                          <>
-                            <ImageIcon className="w-8 h-8 text-[#4e515a]" />
-                            <p className="text-[10px] text-[#8e9299]">PNG ou JPG, recomendado 1280x720</p>
-                            <label className="px-4 py-2 bg-[#1f2128] hover:bg-[#2a2d35] rounded-lg text-xs font-bold cursor-pointer transition-colors border border-[#2a2d35]">
-                              Selecionar Imagem
-                              <input 
-                                type="file" 
-                                accept="image/*" 
-                                className="hidden" 
-                                onChange={e => {
-                                  if (e.target.files?.[0]) setThumbnailFile(e.target.files[0]);
-                                }}
-                              />
-                            </label>
-                          </>
-                        )}
-                      </div>
+                       </div>
                     </div>
                   </>
                 )}
               </div>
 
               {channels.length > 0 && (
-                <div className="p-6 border-t border-[#2a2d35] bg-[#1f2128] flex flex-col gap-4">
-                  {isUploading && (
-                    <div className="space-y-2">
-                       <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="w-3 h-3 animate-spin text-red-500" />
-                            <span>Transmitting Bits to YouTube</span>
-                          </div>
+                <div className="p-8 border-t border-outline-variant/30 bg-surface flex flex-col gap-8 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
+                  {isUploading ? (
+                    <div className="space-y-4">
+                       <div className="flex justify-between items-center px-1">
                           <div className="flex items-center gap-3">
-                            <span className="flex items-center gap-1 text-blue-400">
-                               <Clock className="w-3 h-3" />
-                               {uploadETA}
-                            </span>
-                            <span className="text-white">{uploadProgress}%</span>
+                            <div className="w-2 h-2 rounded-full bg-error animate-pulse" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-on-surface">Transmitting Signal to YouTube Matrix</span>
                           </div>
+                          <span className="text-xl font-mono font-black text-error italic">{uploadProgress}%</span>
                        </div>
-                       <div className="h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                       <div className="h-2.5 bg-surface-variant/30 rounded-full overflow-hidden border border-outline-variant/30 p-0.5">
                           <motion.div 
                             initial={{ width: 0 }}
                             animate={{ width: `${uploadProgress}%` }}
-                            className="h-full bg-gradient-to-r from-red-600 to-red-400" 
+                            className="h-full bg-error rounded-full"
                           />
                        </div>
+                       <div className="flex justify-between items-center px-1">
+                          <span className="text-[9px] font-black uppercase text-on-surface-variant opacity-40 tracking-widest">Global Uplink Node-7</span>
+                          <span className="text-[10px] font-black uppercase text-error tracking-widest">Est. Time Remaining: {uploadETA}</span>
+                       </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-4">
+                       <button 
+                         onClick={() => setShowYoutubeUploader(false)}
+                         className="px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs text-on-surface-variant hover:bg-surface-variant transition-all"
+                       >
+                         Abort
+                       </button>
+                       <button 
+                         onClick={handleUploadToYoutube}
+                         disabled={isUploading || !selectedChannelId}
+                         className="flex-1 m3-button-primary bg-error text-on-error hover:bg-error/90 py-4 shadow-xl shadow-error/20 flex items-center justify-center gap-4 group active:scale-95 transition-all"
+                       >
+                         <Rocket className="w-5 h-5 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" />
+                         <span className="font-black uppercase tracking-widest text-xs">Execute Global Broadcast</span>
+                       </button>
                     </div>
                   )}
-                  <div className="flex justify-end">
-                    <button 
-                      onClick={handleUploadToYoutube}
-                      disabled={isUploading || !uploadTitle}
-                      className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white disabled:opacity-50 px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-red-900/20 w-full md:w-auto"
-                    >
-                      {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5" />}
-                      <span>{isUploading ? 'Enviando...' : 'Enviar para o YouTube'}</span>
-                    </button>
-                  </div>
                 </div>
               )}
             </motion.div>
@@ -1042,13 +1206,12 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
       <AnimatePresence>
         {showThumbnailCreator && (
           <ThumbnailCreator 
-            initialTitle={uploadTitle}
-            onClose={() => setShowThumbnailCreator(false)}
-            onSave={(blob) => {
-              const file = new File([blob], 'thumbnail.jpg', { type: 'image/jpeg' });
+            project={project} 
+            onGenerated={(file) => {
               setThumbnailFile(file);
               setShowThumbnailCreator(false);
-            }}
+            }} 
+            onClose={() => setShowThumbnailCreator(false)}
           />
         )}
       </AnimatePresence>

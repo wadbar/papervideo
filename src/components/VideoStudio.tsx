@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ChevronLeft, 
-  Lightbulb, 
   FileText, 
   Image as ImageIcon, 
   Music, 
   Video, 
-  Send,
-  Wand2,
-  Save,
   CheckCircle2,
   Download,
-  Keyboard
+  Keyboard,
+  ArrowRight,
+  ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { VideoProject, Scene } from '../core/domain/types';
+import { VideoProject } from '../core/domain/types';
 import Orchestrator from './Orchestrator';
 import VisualsLab from './VisualsLab';
 import AudioBooth from './AudioBooth';
@@ -40,14 +38,13 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
     { id: 'orchestrator', label: 'Script', icon: FileText },
     { id: 'visuals', label: 'Visuals', icon: ImageIcon },
     { id: 'audio', label: 'Audio', icon: Music },
-    { id: 'export', label: 'Factory', icon: Video },
+    { id: 'export', label: 'Export', icon: Video },
   ] as const;
 
   const currentStepIndex = steps.findIndex(s => s.id === activeStep);
 
   useKeyBindings({
     'Ctrl+s': () => {
-      // It auto-saves, just show a flash feedback or update the "last saved" manually if we had one
       console.log('Saved');
     },
     'ArrowRight': () => {
@@ -60,32 +57,32 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
   });
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Top Bar */}
-      <header className="h-16 border-b border-[#2a2d35] bg-[#151619] flex items-center justify-between px-6 flex-shrink-0">
+    <div className="flex flex-col h-full bg-background transition-colors duration-300">
+       {/* Top Navigation */}
+       <header className="h-16 flex items-center justify-between px-6 bg-surface border-b border-outline-variant flex-shrink-0 z-10">
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
-            className="p-2 hover:bg-[#1f2128] rounded-lg transition-colors text-[#8e9299] hover:text-white"
+            className="p-2 hover:bg-surface-variant rounded-full transition-colors text-on-surface-variant hover:text-on-surface"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-6 h-6" />
           </button>
-          <div className="h-4 w-[1px] bg-[#2a2d35]" />
-          <h2 className="font-bold truncate max-w-[200px]">{project.title}</h2>
-          <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-blue-900/30 text-blue-400">
-            {activeStep}
-          </span>
+          <div className="flex flex-col">
+            <h2 className="font-bold text-on-surface truncate max-w-[200px] leading-tight">{project.title}</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-primary uppercase tracking-widest leading-none">
+                {activeStep}
+              </span>
+              <div className="w-1 h-1 rounded-full bg-outline-variant" />
+              <span className="text-[10px] text-on-surface-variant font-medium">Last saved {lastSaved.toLocaleTimeString()}</span>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="text-xs text-[#8e9299] flex flex-col items-end mr-4">
-            <span className="font-bold flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500"/> Auto-saved</span>
-            <span className="text-[10px] opacity-70">Just now</span>
-          </div>
-
+        <div className="flex items-center gap-2">
           <button 
             onClick={() => setShowShortcuts(true)}
-            className="flex flex-col items-center justify-center p-2 text-[#8e9299] hover:text-white transition-colors"
+            className="p-3 text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors"
             title="Keyboard Shortcuts"
           >
             <Keyboard className="w-5 h-5" />
@@ -100,17 +97,16 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
               downloadAnchorNode.click();
               downloadAnchorNode.remove();
             }}
-            className="flex items-center gap-2 px-4 py-1.5 text-sm bg-[#1f2128] hover:bg-[#2a2d35] border border-[#2a2d35] rounded-lg transition-colors font-medium cursor-pointer shadow-lg active:scale-95"
-            title="Download JSON Backup"
+            className="m3-button-tonal scale-90"
           >
-            <Download className="w-4 h-4" />
-            <span>Export JSON</span>
+            <Download className="w-4 h-4 mr-2" />
+            <span>JSON Backup</span>
           </button>
         </div>
       </header>
 
-      {/* Step Progress */}
-      <div className="bg-[#0e0e10] border-b border-[#2a2d35] px-8 py-4 flex items-center justify-center gap-4">
+      {/* Material Progress Rails */}
+      <div className="bg-surface border-b border-outline-variant px-8 py-3 flex items-center justify-center gap-1 overflow-x-auto no-scrollbar">
         {steps.map((step, idx) => {
           const Icon = step.icon;
           const isActive = step.id === activeStep;
@@ -120,114 +116,128 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
             <React.Fragment key={step.id}>
               <button
                 onClick={() => setActiveStep(step.id)}
-                className={`flex items-center gap-2 transition-all ${
-                  isActive ? 'text-blue-400 scale-105' : 
-                  isCompleted ? 'text-green-400' : 'text-[#4e515a]'
-                }`}
+                className={`relative flex flex-col items-center gap-1.5 px-6 py-2 transition-all min-w-[100px] group`}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
-                  isActive ? 'border-blue-400 bg-blue-400/10' : 
-                  isCompleted ? 'border-green-400 bg-green-400/10' : 'border-[#2a2d35]'
+                <div className={`w-14 h-8 rounded-full flex items-center justify-center transition-all ${
+                  isActive ? 'bg-secondary-container text-on-secondary-container' : 
+                  'bg-transparent text-on-surface-variant group-hover:bg-surface-variant/40'
                 }`}>
-                  {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Icon className="w-4 h-4" />}
+                  {isCompleted ? <CheckCircle2 className="w-5 h-5 text-secondary" /> : <Icon className="w-5 h-5" />}
+                  {isActive && (
+                    <motion.div 
+                      layoutId="active-step-indicator"
+                      className="absolute inset-0 bg-secondary-container rounded-full -z-10"
+                      transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
                 </div>
-                <span className="text-xs font-bold uppercase tracking-widest">{step.label}</span>
+                <span className={`text-[11px] font-bold tracking-wide transition-colors ${
+                  isActive ? 'text-on-surface' : 'text-on-surface-variant'
+                }`}>
+                  {step.label}
+                </span>
               </button>
               {idx < steps.length - 1 && (
-                <div className={`h-[2px] w-12 rounded-full transition-colors ${
-                  idx < currentStepIndex ? 'bg-green-400/50' : 'bg-[#2a2d35]'
-                }`} />
+                <div className="w-8 h-px bg-outline-variant" />
               )}
             </React.Fragment>
           );
         })}
       </div>
 
-      {/* Step Content */}
+      {/* Step Content Area */}
       <div className="flex-1 overflow-hidden relative">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeStep}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-            className="h-full overflow-y-auto custom-scrollbar p-6 lg:p-8"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.02 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="h-full overflow-y-auto custom-scrollbar p-4 lg:p-6"
           >
-            <div className="max-w-7xl mx-auto h-full">
-              {activeStep === 'orchestrator' && (
-                <Orchestrator 
-                  project={project} 
-                  onUpdate={onUpdate} 
-                  onNext={() => setActiveStep('visuals')}
-                />
-              )}
-              {activeStep === 'visuals' && (
-                <VisualsLab 
-                  project={project} 
-                  onUpdate={onUpdate} 
-                  onPrev={() => setActiveStep('orchestrator')}
-                  onNext={() => setActiveStep('audio')}
-                />
-              )}
-              {activeStep === 'audio' && (
-                <AudioBooth 
-                  project={project} 
-                  onUpdate={onUpdate} 
-                  onPrev={() => setActiveStep('visuals')}
-                  onNext={() => setActiveStep('export')}
-                />
-              )}
-              {activeStep === 'export' && (
-                <VideoExporter 
-                  project={project} 
-                  onUpdate={onUpdate} 
-                  onPrev={() => setActiveStep('audio')}
-                />
-              )}
+            <div className="max-w-7xl mx-auto min-h-full">
+               <div className="m3-card bg-surface/40 shadow-none border border-outline-variant min-h-[calc(100vh-250px)]">
+                 {activeStep === 'orchestrator' && (
+                   <Orchestrator 
+                     project={project} 
+                     onUpdate={onUpdate} 
+                     onNext={() => setActiveStep('visuals')}
+                   />
+                 )}
+                 {activeStep === 'visuals' && (
+                   <VisualsLab 
+                     project={project} 
+                     onUpdate={onUpdate} 
+                     onPrev={() => setActiveStep('orchestrator')}
+                     onNext={() => setActiveStep('audio')}
+                   />
+                 )}
+                 {activeStep === 'audio' && (
+                   <AudioBooth 
+                     project={project} 
+                     onUpdate={onUpdate} 
+                     onPrev={() => setActiveStep('visuals')}
+                     onNext={() => setActiveStep('export')}
+                   />
+                 )}
+                 {activeStep === 'export' && (
+                   <VideoExporter 
+                     project={project} 
+                     onUpdate={onUpdate} 
+                     onPrev={() => setActiveStep('audio')}
+                   />
+                 )}
+               </div>
             </div>
           </motion.div>
         </AnimatePresence>
       </div>
 
+      {/* Help / Shortcuts Dialog (M3) */}
       <AnimatePresence>
         {showShortcuts && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowShortcuts(false)}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowShortcuts(false)}>
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
               onClick={e => e.stopPropagation()}
-              className="hardware-card w-full max-w-md bg-[#0a0a0b] overflow-hidden flex flex-col"
+              className="m3-card w-full max-w-sm bg-surface overflow-hidden flex flex-col p-8 rounded-3xl"
             >
-              <div className="p-6 border-b border-[#2a2d35] bg-[#1f2128]">
-                <h3 className="font-bold uppercase tracking-widest text-center text-blue-400 flex flex-col items-center gap-2">
-                  <Keyboard className="w-6 h-6" />
-                  Keyboard Shortcuts
-                </h3>
+              <div className="flex flex-col items-center gap-4 mb-8">
+                <div className="p-4 bg-primary-container text-on-primary-container rounded-2xl">
+                  <Keyboard className="w-8 h-8" />
+                </div>
+                <h3 className="font-bold text-2xl text-on-surface">Shortcuts</h3>
               </div>
-              <div className="p-6 space-y-4">
-                 <div className="flex justify-between items-center text-sm">
-                   <span className="text-[#8e9299]">Next Step</span>
-                   <kbd className="bg-[#1f2128] font-mono px-2 py-1 rounded text-xs border border-[#2a2d35]">Right Arrow</kbd>
-                 </div>
-                 <div className="flex justify-between items-center text-sm">
-                   <span className="text-[#8e9299]">Previous Step</span>
-                   <kbd className="bg-[#1f2128] font-mono px-2 py-1 rounded text-xs border border-[#2a2d35]">Left Arrow</kbd>
-                 </div>
-                 <div className="flex justify-between items-center text-sm">
-                   <span className="text-[#8e9299]">Save / Sync</span>
-                   <kbd className="bg-[#1f2128] font-mono px-2 py-1 rounded text-xs border border-[#2a2d35]">Ctrl + S</kbd>
-                 </div>
-                 <div className="flex justify-between items-center text-sm">
-                   <span className="text-[#8e9299]">Exit Project</span>
-                   <kbd className="bg-[#1f2128] font-mono px-2 py-1 rounded text-xs border border-[#2a2d35]">Escape</kbd>
-                 </div>
+              
+              <div className="space-y-4 px-2">
+                 <ShortcutItem label="Next Step" kbd="Right Arrow" />
+                 <ShortcutItem label="Previous Step" kbd="Left Arrow" />
+                 <ShortcutItem label="Save Project" kbd="Ctrl + S" />
+                 <ShortcutItem label="Exit Back" kbd="Escape" />
               </div>
+
+              <button 
+                onClick={() => setShowShortcuts(false)}
+                className="m3-button-primary mt-10 w-full"
+              >
+                Dismiss
+              </button>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function ShortcutItem({ label, kbd }: { label: string, kbd: string }) {
+  return (
+    <div className="flex justify-between items-center py-2 border-b border-outline-variant last:border-0 text-sm">
+      <span className="text-on-surface-variant font-medium">{label}</span>
+      <kbd className="bg-surface-variant font-mono px-3 py-1 rounded-lg text-xs text-on-surface-variant border border-outline-variant shadow-sm">{kbd}</kbd>
     </div>
   );
 }

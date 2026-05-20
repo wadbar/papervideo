@@ -29,6 +29,7 @@ export interface AIProvider {
   analyzeSceneMetadata(description: string, narration: string, signal?: AbortSignal): Promise<{ suggestions: string }>;
   generateVisualVariations(prompt: string, narration: string, projectIdea: string, signal?: AbortSignal): Promise<string[]>;
   suggestTransition(currentSceneDesc: string, nextSceneDesc: string, signal?: AbortSignal): Promise<string>;
+  suggestThumbnail(projectData: any, signal?: AbortSignal): Promise<any[]>;
   optimizeSEO(projectData: any, signal?: AbortSignal): Promise<{ titles: string[], description: string, tags: string[] }>;
   isHealthy(): Promise<boolean>;
 }
