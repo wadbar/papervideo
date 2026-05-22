@@ -35,6 +35,7 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
   const [newVoiceName, setNewVoiceName] = useState('');
   const [volume, setVolume] = useState(project.audio?.narrationVolume ?? 1);
   const [musicVolume, setMusicVolume] = useState(project.audio?.musicVolume ?? 0.5);
+  const [autoDucking, setAutoDucking] = useState(project.audio?.autoDucking ?? true);
   const [speechSpeed, setSpeechSpeed] = useState<'slow' | 'normal' | 'fast'>('normal');
   const [mixAudio, setMixAudio] = useState<{ narration: HTMLAudioElement | null, music: HTMLAudioElement | null }>({ narration: null, music: null });
 
@@ -314,15 +315,35 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
                   </button>
                 ))}
                 {clonedVoices.map(voice => (
-                  <button
-                    key={voice.id}
-                    onClick={() => setActiveVoice(voice.id)}
-                    className={`px-4 py-3 rounded-2xl text-xs font-bold transition-all border ${
-                      activeVoice === voice.id ? 'bg-primary text-on-primary border-primary shadow-lg shadow-primary/20' : 'bg-surface/50 border-outline-variant/50 text-on-surface-variant hover:border-primary/50 hover:bg-primary/5'
-                    }`}
-                  >
-                    {voice.name}
-                  </button>
+                  <div key={voice.id} className="flex flex-row items-center gap-2">
+                      <button
+                        onClick={() => setActiveVoice(voice.id)}
+                        className={`flex-1 px-4 py-3 rounded-2xl text-xs font-bold transition-all border ${
+                          activeVoice === voice.id ? 'bg-primary text-on-primary border-primary shadow-lg shadow-primary/20' : 'bg-surface/50 border-outline-variant/50 text-on-surface-variant hover:border-primary/50 hover:bg-primary/5'
+                        }`}
+                      >
+                        {voice.name}
+                      </button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const provider = getAIProviderInstance();
+                          try {
+                              const previewUrl = await provider.generateNarration("This is a preview of my voice.", voice.id, 1, 'normal');
+                              if (previewUrl) {
+                                  const audio = new Audio(previewUrl);
+                                  audio.play();
+                              }
+                          } catch (err: any) {
+                              alert(`Preview failed: ${err.message}`);
+                          }
+                        }}
+                        className="p-3 bg-surface border border-outline-variant/30 rounded-2xl text-on-surface hover:text-primary hover:border-primary transition-colors focus:outline-none"
+                        title="Preview voice"
+                      >
+                        <Volume2 className="w-4 h-4" />
+                      </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -633,6 +654,28 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
                 <span>MUTED</span>
                 <span>AMBIENT_SYNC</span>
                 <span>OVERDRIVE</span>
+            </div>
+            <div className="mt-6 flex flex-row items-center justify-between bg-surface-variant/10 border border-outline-variant/30 rounded-2xl p-4 transition-all">
+                <div className="flex flex-col">
+                    <span className="text-xs font-bold text-on-surface uppercase tracking-widest">Auto-Ducking</span>
+                    <span className="text-[10px] text-on-surface-variant max-w-[200px]">Lowers music volume automatically when narration is present.</span>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                    <div className="relative flex items-center justify-center">
+                        <input 
+                            type="checkbox" 
+                            checked={autoDucking} 
+                            onChange={(e) => {
+                                const val = e.target.checked;
+                                setAutoDucking(val);
+                                onUpdate({ ...project, audio: { ...project.audio, autoDucking: val } });
+                            }} 
+                            className="peer sr-only" 
+                        />
+                        <div className="w-10 h-6 bg-surface-variant/50 rounded-full peer-checked:bg-secondary transition-colors border border-outline-variant/30"></div>
+                        <div className="absolute left-1 top-1 w-4 h-4 bg-on-surface-variant rounded-full peer-checked:translate-x-4 peer-checked:bg-background transition-transform shadow-[0_2px_4px_rgba(0,0,0,0.2)]"></div>
+                    </div>
+                </label>
             </div>
           </div>
         </div>

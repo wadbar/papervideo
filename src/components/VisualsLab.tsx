@@ -17,10 +17,11 @@ interface VisualsLabProps {
   onUpdate: (project: VideoProject) => void;
   onPrev: () => void;
   onNext: () => void;
+  selectedSceneId: string | null;
+  setSelectedSceneId: (id: string | null) => void;
 }
 
-export default function VisualsLab({ project, onUpdate, onPrev, onNext }: VisualsLabProps) {
-  const [selectedSceneId, setSelectedSceneId] = useState<string | null>(project.scenes[0]?.id || null);
+export default function VisualsLab({ project, onUpdate, onPrev, onNext, selectedSceneId, setSelectedSceneId }: VisualsLabProps) {
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
 
   const activeIndex = project.scenes.findIndex(s => s.id === selectedSceneId);

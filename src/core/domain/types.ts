@@ -19,6 +19,7 @@ export interface VideoProject {
     narrationVolume?: number;
     musicVolume?: number;
     speechSpeed?: 'slow' | 'normal' | 'fast';
+    autoDucking?: boolean;
   };
   status: 'draft' | 'processing' | 'completed';
   createdAt: number;
@@ -26,8 +27,8 @@ export interface VideoProject {
   exportSettings?: {
     resolution: '1080p' | '4k' | '720p';
     framerate: 24 | 30 | 60;
-    aspectRatio: '16:9' | '9:16' | '1:1';
-    preset?: 'Youtube' | 'TikTok' | 'Instagram' | 'Custom';
+    aspectRatio: '16:9' | '9:16' | '1:1' | '1:1.91';
+    preset?: 'Youtube' | 'TikTok' | 'Instagram' | 'LinkedIn' | 'Custom';
   };
 }
 
@@ -40,11 +41,13 @@ export interface Scene {
   narrationText?: string;
   videoDuration?: number;
   motionIntensity?: number;
+  motionEasing?: string;
   motionType?: string;
   imageStyle?: string;
   transition?: string; // e.g. fade, cut, slide, crosszoom
   postProcessing?: PostProcessingEffects;
   metadataSuggestions?: string;
+  tags?: string[];
 }
 
 export type ProviderType = 'gemini' | 'ollama' | 'lmstudio' | 'nvidia';

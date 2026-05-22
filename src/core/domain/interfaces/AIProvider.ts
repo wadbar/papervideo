@@ -20,7 +20,7 @@ export interface AIProvider {
   generateNarration(text: string, voice: string, volume?: number, speed?: 'slow' | 'normal' | 'fast', signal?: AbortSignal): Promise<string>;
   generateMusic(prompt: string, signal?: AbortSignal): Promise<string>;
   generateMusicVariations(prompt: string, signal?: AbortSignal): Promise<string[]>;
-  generateVideo(sceneDescription: string, baseImageUrl: string, duration?: number, motionIntensity?: number, signal?: AbortSignal): Promise<string>;
+  generateVideo(sceneDescription: string, baseImageUrl: string, duration?: number, motionIntensity?: number, easing?: string, motionType?: string, signal?: AbortSignal): Promise<string>;
   cloneVoice(voiceName: string, audioSampleBase64: string, signal?: AbortSignal): Promise<string>;
   refinePrompt(prompt: string, style?: string, signal?: AbortSignal): Promise<string>;
   expandVisualDescription(prompt: string, narrationText: string, projectIdea: string, style?: string, signal?: AbortSignal): Promise<string>;

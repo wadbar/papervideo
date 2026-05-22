@@ -207,13 +207,15 @@ aiRouter.post('/music', async (req, res) => {
 
 aiRouter.post('/video', async (req, res) => {
   try {
-    const { sceneDescription, baseImageUrl, duration, motionIntensity } = req.body;
+    const { sceneDescription, baseImageUrl, duration, motionIntensity, easing, motionType } = req.body;
     
     const videoUrl = await aiMotor.generateVideo(
        sceneDescription, 
        baseImageUrl, 
        duration, 
-       motionIntensity
+       motionIntensity,
+       easing,
+       motionType
     );
 
     res.json({ videoUrl, _meta: { provider: "ai-motor" } });

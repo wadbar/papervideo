@@ -58,6 +58,33 @@ export default function App() {
     sysLog('PaperCreeper System active. All subsystems nominal.', 'info');
   }, []);
 
+  // Periodic Reconciliation Protocol for Resilience Sync
+  React.useEffect(() => {
+    if (!systemSettings?.autoSync) return;
+
+    const interval = setInterval(async () => {
+      const activeProj = getActiveProject();
+      if (!activeProj) return;
+
+      try {
+        sysLog(`Auto-Sync scanning active nodes: ${activeProj.id}`, 'info');
+        const response = await fetch('/api/project/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId: activeProj.id, scenesCount: activeProj?.scenes?.length || 0 })
+        });
+        const result = await response.json();
+        if (result?.status === 'reconciled') {
+          sysLog(`Cloud database reconciliation complete. Remote matched with local stream: "${activeProj.title}"`, 'info');
+        }
+      } catch (err: any) {
+        console.warn('Reconciliation service ping failover:', err.message);
+      }
+    }, 20000); // 20s interval
+
+    return () => clearInterval(interval);
+  }, [systemSettings?.autoSync, activeProjectId, projects]);
+
   const openYoutubeManager = (channelId?: string) => {
     setSelectedChannelId(channelId);
     setIsYoutubeManagerOpen(true);

@@ -72,13 +72,15 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
   const ASPECT_RATIOS = [
     { id: '16:9', label: 'Widescreen (YouTube)', desc: '1920x1080' },
     { id: '9:16', label: 'Vertical (TikTok/Shorts)', desc: '1080x1920' },
-    { id: '1:1', label: 'Square (Instagram)', desc: '1080x1080' }
+    { id: '1:1', label: 'Square (Instagram)', desc: '1080x1080' },
+    { id: '1:1.91', label: 'Landscape (LinkedIn)', desc: '1920x1005' }
   ];
 
   const PRESETS = [
     { id: 'Youtube', resolution: '1080p', framerate: 30, aspectRatio: '16:9' },
     { id: 'TikTok', resolution: '1080p', framerate: 60, aspectRatio: '9:16' },
-    { id: 'Instagram', resolution: '1080p', framerate: 30, aspectRatio: '1:1' }
+    { id: 'Instagram', resolution: '1080p', framerate: 30, aspectRatio: '1:1' },
+    { id: 'LinkedIn', resolution: '1080p', framerate: 30, aspectRatio: '1:1.91' }
   ];
 
   const applyPreset = (presetId: string) => {
@@ -597,7 +599,7 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
                 
                 <div className="space-y-4">
                   <div className="flex gap-2 p-1 bg-surface-variant/10 rounded-2xl border border-outline-variant/30">
-                    {['Youtube', 'TikTok', 'Instagram', 'Custom'].map(p => (
+                    {['Youtube', 'TikTok', 'Instagram', 'LinkedIn', 'Custom'].map(p => (
                       <button
                         key={p}
                         onClick={() => p === 'Custom' ? onUpdate({...project, exportSettings: {...project.exportSettings, preset: 'Custom' as any}}) : applyPreset(p)}
@@ -641,7 +643,7 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
 
                   <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/60 pl-1">Aspect Ratio</label>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 gap-2">
                         {ASPECT_RATIOS.map(ar => (
                           <button
                             key={ar.id}

@@ -74,8 +74,8 @@ export class BackendAIProvider implements AIProvider {
     return res.musicUrls;
   }
 
-  async generateVideo(sceneDescription: string, baseImageUrl: string, duration?: number, motionIntensity?: number, signal?: AbortSignal): Promise<string> {
-    const res = await this.fetchAuth('/video', { sceneDescription, baseImageUrl, duration, motionIntensity }, signal);
+  async generateVideo(sceneDescription: string, baseImageUrl: string, duration?: number, motionIntensity?: number, easing?: string, motionType?: string, signal?: AbortSignal): Promise<string> {
+    const res = await this.fetchAuth('/video', { sceneDescription, baseImageUrl, duration, motionIntensity, easing, motionType }, signal);
     return res.videoUrl;
   }
 

@@ -226,7 +226,7 @@ class AIMotorInternal {
 
     if (mode === 'video') {
        const vProviders = [];
-       if (process.env.REPLICATE_API_TOKEN) vProviders.push({ id: 'gemini', run: () => this.callGeminiVideo(config.prompt, config.payload?.imageUrl, config.payload?.duration, config.payload?.motion) });
+       if (process.env.REPLICATE_API_TOKEN) vProviders.push({ id: 'gemini', run: () => this.callGeminiVideo(config.prompt, config.payload?.imageUrl, config.payload?.duration, config.payload?.motion, config.payload?.easing, config.payload?.motionType) });
        if (process.env.NVIDIA_API_KEY) vProviders.push({ id: 'nvidia', run: () => this.callNvidiaVideo(config.prompt, config.payload?.imageUrl) });
        
        if (vProviders.length === 0) {
@@ -442,31 +442,34 @@ class AIMotorInternal {
     throw new Error(`Motor Fetch failed after ${maxRetries} attempts. Last error: ${lastError?.message}`);
   }
 
-  private async callGeminiVideo(prompt: string, img?: string, duration = 4, motion = 5) {
-     const token = process.env.REPLICATE_API_TOKEN;
-     if (!token) throw new Error("REPLICATE_API_TOKEN_MISSING");
+    private async callGeminiVideo(prompt: string, img?: string, duration = 4, motion = 5, easing = 'Linear', motionType = 'Pan') {
+       const token = process.env.REPLICATE_API_TOKEN;
+       if (!token) throw new Error("REPLICATE_API_TOKEN_MISSING");
+  
+       if (!img) throw new Error("Image requirement unfulfilled for video-to-video workflow.");
+  
+       const motionBucketId = Math.max(1, Math.min(255, motion * 25));
+       const videoLength = duration > 3 ? "25_frames_with_svd_xt" : "14_frames_with_svd";
 
-     if (!img) throw new Error("Image requirement unfulfilled for video-to-video workflow.");
-
-     const response = await this.fetchWithBackoff("https://api.replicate.com/v1/predictions", {
-        method: "POST",
-        headers: {
-            "Authorization": `Token ${token}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            version: "3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438", // svd
-            input: {
-                cond_aug: 0.02,
-                decoding_t: 7,
-                input_image: img,
-                video_length: "14_frames_with_svd",
-                sizing_strategy: "maintain_aspect_ratio",
-                motion_bucket_id: 127,
-                frames_per_second: 6
-            }
-        })
-    });
+       const response = await this.fetchWithBackoff("https://api.replicate.com/v1/predictions", {
+          method: "POST",
+          headers: {
+              "Authorization": `Token ${token}`,
+              "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+              version: "3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438", // svd
+              input: {
+                  cond_aug: 0.02,
+                  decoding_t: 7,
+                  input_image: img,
+                  video_length: videoLength,
+                  sizing_strategy: "maintain_aspect_ratio",
+                  motion_bucket_id: motionBucketId,
+                  frames_per_second: 6
+              }
+          })
+      });
 
     if (!response.ok) throw new Error(`Replicate API Error: ${response.status}`);
     let prediction = await response.json();
@@ -858,12 +861,12 @@ class AIMotorInternal {
     return response.content;
   }
 
-  public async generateVideo(prompt: string, imageUrl?: string, duration: number = 4, motion: number = 5) {
-    this.log('INFO', 'VIDEO', 'Invocando geração de vídeo generativo.');
+  public async generateVideo(prompt: string, imageUrl?: string, duration: number = 4, motion: number = 5, easing: string = "Linear", motionType: string = "Pan") {
+    this.log('INFO', 'VIDEO', `Invocando geração de vídeo generativo com Easing: ${easing}`);
     const response = await this.execute({
       prompt,
       mode: 'video',
-      payload: { imageUrl, duration, motion }
+      payload: { imageUrl, duration, motion, easing, motionType }
     });
     return response.content;
   }

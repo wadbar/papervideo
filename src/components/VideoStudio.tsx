@@ -9,7 +9,9 @@ import {
   Download,
   Keyboard,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { VideoProject } from '../core/domain/types';
@@ -29,6 +31,8 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
   const [activeStep, setActiveStep] = useState<'orchestrator' | 'visuals' | 'audio' | 'export'>('orchestrator');
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>(new Date(project.createdAt));
+  const [selectedSceneId, setSelectedSceneId] = useState<string | null>(project.scenes[0]?.id || null);
+  const [timelineZoom, setTimelineZoom] = useState<number>(1.0);
 
   useEffect(() => {
     setLastSaved(new Date());
@@ -59,8 +63,8 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
   return (
     <div className="flex flex-col h-full bg-background transition-colors duration-300">
        {/* Top Navigation */}
-       <header className="h-16 flex items-center justify-between px-6 bg-surface border-b border-outline-variant flex-shrink-0 z-10">
-        <div className="flex items-center gap-4">
+       <header className="h-16 flex items-center justify-between px-6 bg-surface border-b border-outline-variant flex-shrink-0 z-10 w-full">
+        <div className="flex items-center gap-4 w-1/4">
           <button 
             onClick={onBack}
             className="p-2 hover:bg-surface-variant rounded-full transition-colors text-on-surface-variant hover:text-on-surface"
@@ -79,7 +83,65 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex-1 max-w-xl mx-4">
+            <div className="flex flex-col gap-1 w-full relative group">
+                <div className="flex justify-between items-center text-[10px] uppercase font-black text-on-surface-variant tracking-widest absolute -top-5 w-full">
+                    <span>0:00</span>
+                    <div className="flex items-center gap-1.5 bg-surface/85 px-2 py-0.5 rounded-lg border border-outline-variant/30 select-none opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ZoomOut className="w-3 h-3 cursor-pointer text-primary hover:scale-125 transition-transform" onClick={() => setTimelineZoom(prev => Math.max(0.5, prev - 0.25))} />
+                      <input 
+                        type="range"
+                        min="0.5"
+                        max="3.0"
+                        step="0.1"
+                        value={timelineZoom}
+                        onChange={(e) => setTimelineZoom(parseFloat(e.target.value))}
+                        className="w-16 h-1 bg-surface-variant/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                        title="Zoom Timeline"
+                      />
+                      <ZoomIn className="w-3 h-3 cursor-pointer text-primary hover:scale-125 transition-transform" onClick={() => setTimelineZoom(prev => Math.min(3.0, prev + 0.25))} />
+                      <span className="font-mono text-[8px] tracking-tight">{Math.round(timelineZoom * 100)}%</span>
+                    </div>
+                    <span>Total Length: {project.scenes.reduce((acc, s) => acc + (s.videoDuration || 4), 0)}s</span>
+                </div>
+                <div className="w-full overflow-x-auto no-scrollbar py-1">
+                  <div 
+                    style={{ width: `${timelineZoom * 100}%`, minWidth: '100%' }}
+                    className="h-2 bg-surface-variant/30 rounded-full flex overflow-hidden transition-all duration-300"
+                  >
+                      {project.scenes.map((s, i) => {
+                          const totalDuration = project.scenes.reduce((acc, cur) => acc + (cur.videoDuration || 4), 0) || 1;
+                          const duration = s.videoDuration || 4;
+                          const percentage = (duration / totalDuration) * 100;
+                          const isSelected = selectedSceneId === s.id;
+                          return (
+                              <div 
+                                  key={s.id} 
+                                  style={{ width: `${percentage}%` }}
+                                  className={`h-full border-r border-background/50 relative group/timeline cursor-pointer transition-all ${activeStep === 'visuals' && isSelected ? 'bg-primary shadow-[0_0_12px_rgba(var(--primary),0.8)]' : activeStep === 'visuals' ? 'bg-primary/40 hover:bg-primary/60' : 'bg-primary/40'}`}
+                                  onClick={() => {
+                                      if (activeStep === 'visuals') setSelectedSceneId(s.id);
+                                  }}
+                              >
+                                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover/timeline:opacity-100 transition-opacity pointer-events-none flex flex-col items-center">
+                                      <div className="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-xl p-1 w-32">
+                                          {s.imageUrl ? (
+                                              <img src={s.imageUrl} className="w-full aspect-video object-cover rounded-lg" alt="Thumbnail" referrerPolicy="no-referrer" />
+                                          ) : (
+                                              <div className="w-full aspect-video bg-surface-variant rounded-lg flex items-center justify-center text-[8px] text-on-surface-variant">No Image</div>
+                                          )}
+                                          <div className="text-[10px] text-center font-bold font-mono mt-1 pt-1 border-t border-outline-variant/30 text-on-surface">{duration}s</div>
+                                      </div>
+                                  </div>
+                              </div>
+                          )
+                      })}
+                  </div>
+                </div>
+            </div>
+        </div>
+
+        <div className="flex items-center gap-2 w-1/4 justify-end">
           <button 
             onClick={() => setShowShortcuts(true)}
             className="p-3 text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors"
@@ -171,6 +233,8 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
                      onUpdate={onUpdate} 
                      onPrev={() => setActiveStep('orchestrator')}
                      onNext={() => setActiveStep('audio')}
+                     selectedSceneId={selectedSceneId}
+                     setSelectedSceneId={setSelectedSceneId}
                    />
                  )}
                  {activeStep === 'audio' && (

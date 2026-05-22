@@ -14,9 +14,11 @@ import {
   Signal,
   CheckCircle2,
   HardDrive,
-  Workflow
+  Workflow,
+  Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useProjectStore } from '../core/store/useProjectStore';
 
 interface Metric {
   provider: string;
@@ -31,6 +33,62 @@ export default function ObservabilityDashboard() {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [totalRequests, setTotalRequests] = useState(0);
+
+  const activeProject = useProjectStore(state => {
+    return state.projects.find(p => p.id === state.activeProjectId);
+  });
+
+  // Analyze consecutive scenes for visual style transitions
+  const consecutiveJumps = React.useMemo(() => {
+    if (!activeProject || !activeProject.scenes || activeProject.scenes.length < 2) {
+      return [];
+    }
+
+    const jumps = [];
+    const scenes = activeProject.scenes;
+
+    for (let i = 0; i < scenes.length - 1; i++) {
+      const current = scenes[i];
+      const next = scenes[i + 1];
+
+      const currentGrade = current.postProcessing?.colorGrade || 'Original';
+      const nextGrade = next.postProcessing?.colorGrade || 'Original';
+
+      const currentBrightness = current.postProcessing?.brightness ?? 100;
+      const nextBrightness = next.postProcessing?.brightness ?? 100;
+
+      const currentContrast = current.postProcessing?.contrast ?? 100;
+      const nextContrast = next.postProcessing?.contrast ?? 100;
+
+      const brightnessDelta = nextBrightness - currentBrightness;
+      const contrastDelta = nextContrast - currentContrast;
+
+      const hasGradeChange = currentGrade !== nextGrade;
+      const hasBrightnessJump = Math.abs(brightnessDelta) > 15;
+      const hasContrastJump = Math.abs(contrastDelta) > 15;
+
+      const isStable = !hasGradeChange && !hasBrightnessJump && !hasContrastJump;
+
+      jumps.push({
+        fromIdx: i,
+        toIdx: i + 1,
+        fromId: current.id,
+        toId: next.id,
+        currentGrade,
+        nextGrade,
+        currentBrightness,
+        nextBrightness,
+        brightnessDelta,
+        contrastDelta,
+        hasGradeChange,
+        hasBrightnessJump,
+        hasContrastJump,
+        isStable
+      });
+    }
+
+    return jumps;
+  }, [activeProject]);
 
   const fetchMetrics = async () => {
     setIsRefreshing(true);
@@ -162,27 +220,67 @@ export default function ObservabilityDashboard() {
                </div>
             </div>
 
-            <div className="bg-primary shadow-2xl shadow-primary/20 rounded-[2.5rem] p-10 flex flex-col gap-6 relative overflow-hidden transition-transform hover:scale-[1.02] duration-500">
-               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,var(--color-on-primary),transparent)] opacity-10" />
-               <div className="relative z-10 flex flex-col gap-4">
-                  <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-on-primary/60 flex items-center gap-3">
-                    <RefreshCw className="w-4 h-4" /> Auto-Correction Prot.
-                  </h3>
-                  <div className="flex items-baseline gap-4">
-                    <span className="text-6xl font-black text-on-primary tracking-tighter">14</span>
-                    <span className="text-sm text-on-primary/80 font-black uppercase tracking-widest">Neural Repairs</span>
+            <div className="bg-surface-variant/10 rounded-[2.5rem] p-8 border border-outline-variant/30 relative overflow-hidden group">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none" />
+               <div className="flex items-center gap-4 mb-6">
+                  <div className="p-2 bg-primary/10 rounded-xl text-primary">
+                    <Eye className="w-5 h-5 shadow-sm" />
                   </div>
-                  <p className="text-sm text-on-primary/70 leading-relaxed font-bold tracking-tight">
-                    The Critical Guard successfully remediated 14 malformed JSON payloads and structural hallucinations in the last operational cycle, securing the production pipeline against data entropy.
-                  </p>
-                  <div className="h-1 bg-on-primary/20 rounded-full w-full overflow-hidden">
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-on-surface">Visual Consistency Log</h3>
+                    <p className="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest opacity-60">Symmetry Audit & Style Drift</p>
+                  </div>
+               </div>
+
+               <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 no-scrollbar">
+                 {consecutiveJumps.length === 0 ? (
+                   <div className="py-8 text-center flex flex-col items-center gap-3">
+                      <ShieldCheck className="w-8 h-8 text-on-surface-variant/10 animate-pulse" />
+                      <p className="text-[10px] font-black uppercase text-on-surface-variant tracking-widest opacity-40 italic">No multi-scene transitions to audit</p>
+                      <span className="text-[9px] text-on-surface-variant/50 max-w-[200px] leading-relaxed">Ensure your project has 2 or more scenes with styling customized to check style drift.</span>
+                   </div>
+                 ) : (
+                   consecutiveJumps.map((jump, idx) => (
                      <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: '100%' }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="h-full bg-on-primary"
-                     />
-                  </div>
+                       initial={{ opacity: 0, y: 10 }}
+                       animate={{ opacity: 1, y: 0 }}
+                       transition={{ delay: idx * 0.05 }}
+                       key={idx}
+                       className={`p-4 rounded-3xl border transition-all ${jump.isStable ? 'bg-surface/50 border-outline-variant/15 hover:border-outline-variant/40' : 'bg-primary/5 border-primary/20 hover:border-primary/40'} space-y-2`}
+                     >
+                       <div className="flex justify-between items-center text-[9px] uppercase tracking-widest font-black">
+                         <span className="text-on-surface">NODE {jump.fromIdx + 1} ➔ NODE {jump.toIdx + 1}</span>
+                         <span className={`px-2.5 py-1 rounded-full ${jump.isStable ? 'text-tertiary bg-tertiary/10 border border-tertiary/20' : 'text-primary bg-primary/10 border border-primary/25'}`}>
+                           {jump.isStable ? 'STABLE_AXIS' : 'STYLE_DRIFT_ALERT'}
+                         </span>
+                       </div>
+
+                       <div className="grid grid-cols-2 gap-2 text-[10px] font-medium text-on-surface-variant leading-relaxed">
+                         <div className="space-y-0.5">
+                           <span className="text-[8px] uppercase tracking-wider block opacity-50 font-bold">Color Grade Shift</span>
+                           <span className={jump.hasGradeChange ? "text-primary font-bold" : "text-on-surface-variant"}>
+                             {jump.hasGradeChange ? `${jump.currentGrade} ➔ ${jump.nextGrade}` : `Consistent (${jump.currentGrade})`}
+                           </span>
+                         </div>
+                         <div className="space-y-0.5">
+                           <span className="text-[8px] uppercase tracking-wider block opacity-50 font-bold">Lighting Jump</span>
+                           <span className={jump.hasBrightnessJump ? "text-primary font-bold" : "text-on-surface-variant"}>
+                             {jump.hasBrightnessJump 
+                               ? `Brightness: ${jump.brightnessDelta > 0 ? '+' : ''}${jump.brightnessDelta}%` 
+                               : `Low Delta (${jump.brightnessDelta > 0 ? '+' : ''}${jump.brightnessDelta}%)`}
+                           </span>
+                         </div>
+                       </div>
+
+                       {!jump.isStable && (
+                         <div className="text-[8px] font-black text-primary uppercase tracking-widest pt-1 flex items-center gap-1.5 border-t border-primary/10 mt-1">
+                           <AlertCircle className="w-3 h-3" /> 
+                           <span>Potential visual jump detected!</span>
+                         </div>
+                       )}
+                     </motion.div>
+                   ))
+                 )}
                </div>
             </div>
           </div>

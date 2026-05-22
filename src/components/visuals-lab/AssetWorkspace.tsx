@@ -16,15 +16,14 @@ import {
   Sliders,
   ArrowRightLeft
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, Reorder } from 'motion/react';
 import { useVisualsLab } from '../../core/contexts/VisualsLabContext';
 import { useSettingsStore } from '../../core/store/useSettingsStore';
 import { useProjectStore } from '../../core/store/useProjectStore';
 import { sysLog } from '../../lib/sys';
-
 import { PostProcessingEffects, getFilterString, getVignetteStyle, COLOR_GRADES, TRANSITIONS } from '../../lib/visualUtils';
-
 import VideoPreview from './VideoPreview';
+import TransitionSelector from '../TransitionSelector';
 
 export default function AssetWorkspace() {
   const { 
@@ -53,6 +52,9 @@ export default function AssetWorkspace() {
   const [visualVariations, setVisualVariations] = useState<string[]>([]);
   const [isSuggestingTransition, setIsSuggestingTransition] = useState(false);
   const [isRefiningVision, setIsRefiningVision] = useState(false);
+  const [autoPlayPreview, setAutoPlayPreview] = useState(true);
+  const [splitView, setSplitView] = useState(false);
+  const [globalApply, setGlobalApply] = useState(false);
   
   const styleDropdownRef = useRef<HTMLDivElement>(null);
   const motionDropdownRef = useRef<HTMLDivElement>(null);
@@ -107,12 +109,21 @@ export default function AssetWorkspace() {
   };
 
   const updatePostProcessing = (updates: Partial<PostProcessingEffects>) => {
-    updateActiveScene({
-      postProcessing: {
-        ...(activeScene.postProcessing || {}),
-        ...updates
-      }
-    });
+    const newEffects = { ...(activeScene.postProcessing || {}), ...updates };
+    
+    createSnapshot(project.id);
+    if (globalApply) {
+        onUpdate({
+            ...project,
+            scenes: project.scenes.map(s => ({
+                ...s,
+                postProcessing: { ...(s.postProcessing || {}), ...updates }
+            }))
+        });
+        sysLog('Global Post-Processing Matrix Applied to Sequence', 'info');
+    } else {
+        updateActiveScene({ postProcessing: newEffects });
+    }
   };
 
   const getPreviewFilter = () => {
@@ -200,7 +211,9 @@ export default function AssetWorkspace() {
           activeScene.description, 
           activeScene.imageUrl, 
           activeScene.videoDuration || 4, 
-          activeScene.motionIntensity || 5
+          activeScene.motionIntensity || 5,
+          activeScene.motionEasing || 'Linear',
+          activeScene.motionType || 'Pan'
       );
       updateActiveScene({ videoUrl });
       sysLog(`Asset Synced: Video OK for ${activeScene.id.slice(0, 8)}`, 'info');
@@ -483,10 +496,44 @@ export default function AssetWorkspace() {
                         </div>
                         <textarea 
                             value={activeScene.description}
-                            onChange={(e) => updateActiveScene({ description: e.target.value })}
+                            onChange={(e) => {
+                                const text = e.target.value;
+                                const desc = text.toLowerCase();
+                                const extractedTags: string[] = [];
+                                
+                                if (desc.includes('portrait') || desc.includes('face')) extractedTags.push('Portrait');
+                                if (desc.includes('landscape') || desc.includes('mountain') || desc.includes('nature') || desc.includes('ocean')) extractedTags.push('Landscape');
+                                if (desc.includes('interior') && desc.includes('cinematic')) extractedTags.push('Cinematic Interior');
+                                else if (desc.includes('interior') || desc.includes('room') || desc.includes('inside')) extractedTags.push('Interior');
+                                if (desc.includes('close-up') || desc.includes('macro') || desc.includes('close up')) extractedTags.push('Close-up');
+                                if (desc.includes('wide') || desc.includes('panorama') || desc.includes('establishing')) extractedTags.push('Wide Angle');
+                                if (desc.includes('neon') || desc.includes('cyberpunk') || desc.includes('sci-fi')) extractedTags.push('Cyberpunk');
+                                if (desc.includes('dark') || desc.includes('shadow') || desc.includes('night')) extractedTags.push('Dark/Night');
+
+                                updateActiveScene({ description: text, tags: extractedTags });
+                            }}
                             className="w-full h-40 bg-surface/40 border border-outline-variant/50 rounded-2xl p-4 text-sm font-medium text-on-surface placeholder:text-on-surface-variant/40 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none resize-none leading-relaxed transition-all"
                             placeholder="Describe the visual essence..."
                         />
+                        <div className="space-y-2 mt-2">
+                            <label className="text-[10px] font-black uppercase text-on-surface-variant tracking-widest pl-1">Classifier Keywords</label>
+                            <input 
+                                type="text"
+                                value={activeScene.metadataSuggestions || ''}
+                                onChange={(e) => updateActiveScene({ metadataSuggestions: e.target.value })}
+                                placeholder="Comma-separated keywords (e.g. cinematic, aerial, cyberpunk)"
+                                className="w-full bg-surface/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-xs font-bold text-on-surface focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-on-surface-variant/30"
+                            />
+                        </div>
+                        {activeScene.tags && activeScene.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-3 p-2 bg-surface/20 rounded-xl">
+                                {activeScene.tags.map(tag => (
+                                    <span key={tag} className="text-[9px] font-black uppercase text-secondary tracking-widest bg-secondary/10 px-2 py-1 rounded-full border border-secondary/20">
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                         
                         <AnimatePresence>
                           {visualVariations.length > 0 && (
@@ -554,30 +601,70 @@ export default function AssetWorkspace() {
                     {/* Visual Stage */}
                     <div className="relative group rounded-3xl overflow-hidden bg-black aspect-video shadow-2xl border border-outline-variant/30">
                         {activeScene.videoUrl ? (
-                            <VideoPreview url={activeScene.videoUrl} poster={activeScene.imageUrl} effects={activeScene.postProcessing} />
+                            <VideoPreview url={activeScene.videoUrl} poster={activeScene.imageUrl} effects={activeScene.postProcessing} autoPlay={autoPlayPreview} splitView={splitView} />
                         ) : activeScene.imageUrl ? (
                             <div className="w-full h-full relative overflow-hidden group">
-                                <img 
-                                    src={activeScene.imageUrl} 
-                                    className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-105" 
-                                    referrerPolicy="no-referrer" 
-                                    style={getPreviewFilter()}
-                                />
-                                {/* Overlay Effects */}
-                                {activeScene.postProcessing?.grain && activeScene.postProcessing.grain > 0 && (
-                                    <div 
-                                        className="absolute inset-0 pointer-events-none z-10 opacity-[0.03] mix-blend-overlay"
-                                        style={{ 
-                                            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-                                            opacity: activeScene.postProcessing.grain * 0.15 
-                                        }}
-                                    />
-                                )}
-                                {activeScene.postProcessing?.vignette && activeScene.postProcessing.vignette > 0 && (
-                                    <div 
-                                        className="absolute inset-0 pointer-events-none transition-all duration-500"
-                                        style={getVignetteStyle(activeScene.postProcessing.vignette)}
-                                    />
+                                {splitView ? (
+                                    <div className="flex w-full h-full relative">
+                                        <div className="w-1/2 h-full overflow-hidden border-r-2 border-primary relative z-20">
+                                            <img 
+                                                src={activeScene.imageUrl} 
+                                                className="w-[200%] max-w-none h-full object-cover" 
+                                                referrerPolicy="no-referrer" 
+                                                style={{ filter: 'none', objectPosition: 'left center' }}
+                                            />
+                                            <div className="absolute bottom-4 left-4 bg-black/60 px-2 py-1 rounded text-[10px] font-bold text-white tracking-widest">RAW</div>
+                                        </div>
+                                        <div className="w-1/2 h-full overflow-hidden relative">
+                                            <img 
+                                                src={activeScene.imageUrl} 
+                                                className="w-[200%] max-w-none h-full object-cover -ml-[100%]" 
+                                                referrerPolicy="no-referrer" 
+                                                style={{ ...getPreviewFilter(), objectPosition: 'right center' }}
+                                            />
+                                            {activeScene.postProcessing?.grain && activeScene.postProcessing.grain > 0 && (
+                                                <div 
+                                                    className="absolute inset-0 pointer-events-none z-10 opacity-[0.03] mix-blend-overlay"
+                                                    style={{ 
+                                                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                                                        opacity: activeScene.postProcessing.grain * 0.15 
+                                                    }}
+                                                />
+                                            )}
+                                            {activeScene.postProcessing?.vignette && activeScene.postProcessing.vignette > 0 && (
+                                                <div 
+                                                    className="absolute inset-0 pointer-events-none transition-all duration-500"
+                                                    style={getVignetteStyle(activeScene.postProcessing.vignette)}
+                                                />
+                                            )}
+                                            <div className="absolute bottom-4 right-4 bg-primary/80 px-2 py-1 rounded text-[10px] font-bold text-white tracking-widest">PROCESSED</div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <img 
+                                            src={activeScene.imageUrl} 
+                                            className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-105" 
+                                            referrerPolicy="no-referrer" 
+                                            style={getPreviewFilter()}
+                                        />
+                                        {/* Overlay Effects */}
+                                        {activeScene.postProcessing?.grain && activeScene.postProcessing.grain > 0 && (
+                                            <div 
+                                                className="absolute inset-0 pointer-events-none z-10 opacity-[0.03] mix-blend-overlay"
+                                                style={{ 
+                                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                                                    opacity: activeScene.postProcessing.grain * 0.15 
+                                                }}
+                                            />
+                                        )}
+                                        {activeScene.postProcessing?.vignette && activeScene.postProcessing.vignette > 0 && (
+                                            <div 
+                                                className="absolute inset-0 pointer-events-none transition-all duration-500"
+                                                style={getVignetteStyle(activeScene.postProcessing.vignette)}
+                                            />
+                                        )}
+                                    </>
                                 )}
                                 <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                                     <button className="p-3 bg-surface/80 backdrop-blur-md rounded-2xl text-on-surface hover:bg-surface transition-colors shadow-lg">
@@ -624,14 +711,78 @@ export default function AssetWorkspace() {
                                 </div>
                                 Effect Matrix
                             </label>
-                            <button 
-                                onClick={() => updateActiveScene({ postProcessing: { brightness: 100, contrast: 100, saturation: 100, vignette: 0, colorGrade: 'Original', temperature: 50, grain: 0, chromaticAberration: 0, blurFx: 0 } })}
-                                className="text-[10px] font-black text-on-surface-variant hover:text-primary transition-colors uppercase tracking-widest bg-surface/40 px-4 py-2 rounded-full border border-outline-variant/30"
-                            >
-                                Reset Nodes
-                            </button>
+                            <div className="flex items-center gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <div className="relative flex items-center justify-center">
+                                        <input type="checkbox" checked={splitView} onChange={(e) => setSplitView(e.target.checked)} className="peer sr-only" />
+                                        <div className="w-8 h-4 bg-surface-variant/50 rounded-full peer-checked:bg-primary transition-colors border border-outline-variant/30"></div>
+                                        <div className="absolute left-0.5 top-0.5 w-3 h-3 bg-on-surface-variant rounded-full peer-checked:translate-x-4 peer-checked:bg-on-primary transition-transform shadow-sm"></div>
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant group-hover:text-primary transition-colors">Split-View</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <div className="relative flex items-center justify-center">
+                                        <input type="checkbox" checked={globalApply} onChange={(e) => setGlobalApply(e.target.checked)} className="peer sr-only" />
+                                        <div className="w-8 h-4 bg-surface-variant/50 rounded-full peer-checked:bg-primary transition-colors border border-outline-variant/30"></div>
+                                        <div className="absolute left-0.5 top-0.5 w-3 h-3 bg-on-surface-variant rounded-full peer-checked:translate-x-4 peer-checked:bg-on-primary transition-transform shadow-sm"></div>
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant group-hover:text-primary transition-colors">Global Apply</span>
+                                </label>
+                                <button 
+                                    onClick={() => {
+                                        if (globalApply) {
+                                            const updates = { brightness: 100, contrast: 100, saturation: 100, vignette: 0, colorGrade: 'Original', temperature: 50, grain: 0, chromaticAberration: 0, blurFx: 0 };
+                                            onUpdate({
+                                                ...project,
+                                                scenes: project.scenes.map(s => ({
+                                                    ...s,
+                                                    motionIntensity: 5,
+                                                    postProcessing: { ...(s.postProcessing || {}), ...updates }
+                                                }))
+                                            });
+                                        } else {
+                                            updateActiveScene({ motionIntensity: 5, postProcessing: { brightness: 100, contrast: 100, saturation: 100, vignette: 0, colorGrade: 'Original', temperature: 50, grain: 0, chromaticAberration: 0, blurFx: 0 } })
+                                        }
+                                    }}
+                                    className="text-[10px] font-black text-on-surface-variant hover:text-primary transition-colors uppercase tracking-widest bg-surface/40 px-4 py-2 rounded-full border border-outline-variant/30"
+                                >
+                                    Reset Effects
+                                </button>
+                            </div>
                         </div>
                         
+                        <div className="flex flex-col gap-4 mb-8">
+                            <label className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest pl-1">Quick Style Setup</label>
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { label: 'Cinematic', brightness: 90, contrast: 110, grain: 20 },
+                                    { label: 'Vintage', brightness: 105, contrast: 90, grain: 40 },
+                                    { label: 'Moody Noir', brightness: 80, contrast: 120, grain: 30 },
+                                    { label: 'Bright & Airy', brightness: 110, contrast: 95, grain: 0 },
+                                ].map(style => (
+                                    <button
+                                        key={style.label}
+                                        onClick={() => {
+                                             if (globalApply) {
+                                                onUpdate({
+                                                    ...project,
+                                                    scenes: project.scenes.map(s => ({
+                                                        ...s,
+                                                        postProcessing: { ...(s.postProcessing || {}), brightness: style.brightness, contrast: style.contrast, grain: style.grain }
+                                                    }))
+                                                });
+                                            } else {
+                                                updateActiveScene({ postProcessing: { ...(activeScene.postProcessing || {}), brightness: style.brightness, contrast: style.contrast, grain: style.grain } })
+                                            }
+                                        }}
+                                        className="text-[10px] font-bold tracking-widest px-4 py-2 rounded-xl text-on-surface hover:bg-surface-variant bg-surface/50 border border-outline-variant/30 transition-colors uppercase"
+                                    >
+                                        {style.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
                             {/* Color Grade - Full Width Row */}
                             <div className="md:col-span-2 space-y-3 pb-4 border-b border-outline-variant/30">
@@ -706,8 +857,8 @@ export default function AssetWorkspace() {
                     </div>
 
                     {/* Quick Motion Controls - Card Layout */}
-                    <div className="bg-primary-container/10 p-8 rounded-[2.5rem] border border-primary/20 grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <div className="space-y-4">
+                    <div className="bg-primary-container/10 p-8 rounded-[2.5rem] border border-primary/20 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-6">
+                        <div className="space-y-4 xl:col-span-2">
                             <label className="text-[10px] font-black text-on-primary-container uppercase tracking-widest pl-1">Kinetic Profile</label>
                             <select 
                                 value={activeScene.motionType || 'Dynamic'}
@@ -717,43 +868,62 @@ export default function AssetWorkspace() {
                                 {['Dynamic', 'Orbit', 'Zoom In', 'Pan Left', 'Slow Pan', 'Static'].map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                         </div>
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between pl-1">
-                              <label className="text-[10px] font-black text-on-primary-container uppercase tracking-widest">Temporal Junction</label>
-                              <button 
-                                  onClick={() => autoSuggestTransition(project.scenes.findIndex(s => s.id === activeScene.id))}
-                                  disabled={isSuggestingTransition || project.scenes.findIndex(s => s.id === activeScene.id) >= project.scenes.length - 1}
-                                  className="text-primary hover:text-primary/70 transition-colors"
-                              >
-                                  {isSuggestingTransition ? <Loader2 className="w-4 h-4 animate-spin"/> : <Sparkles className="w-4 h-4"/>}
-                              </button>
+                        <div className="space-y-4 xl:col-span-5">
+                                <TransitionSelector
+                                    currentTransition={activeScene.transition || 'Cut'}
+                                    onSelect={(t) => updateActiveScene({ transition: t })}
+                                    isSuggesting={isSuggestingTransition}
+                                    onSuggest={() => autoSuggestTransition(project.scenes.findIndex(s => s.id === activeScene.id))}
+                                />
+                        </div>
+                        <div className="space-y-2 xl:col-span-2">
+                            <EffectSlider 
+                                label="Motion Intensity" 
+                                value={activeScene.motionIntensity || 5} 
+                                min={1} max={10} 
+                                onChange={(v: number) => updateActiveScene({ motionIntensity: v })} 
+                            />
+                            <div className="flex justify-between gap-2 mt-2">
+                                <button onClick={() => updateActiveScene({ motionIntensity: 3 })} className="flex-1 py-1 rounded-full bg-surface-variant/30 hover:bg-surface-variant text-[9px] font-bold uppercase text-on-surface-variant transition-colors border border-outline-variant/30">Smooth</button>
+                                <button onClick={() => updateActiveScene({ motionIntensity: 7 })} className="flex-1 py-1 rounded-full bg-surface-variant/30 hover:bg-surface-variant text-[9px] font-bold uppercase text-on-surface-variant transition-colors border border-outline-variant/30">Fast</button>
+                                <button onClick={() => updateActiveScene({ motionIntensity: 10 })} className="flex-1 py-1 rounded-full bg-surface-variant/30 hover:bg-surface-variant text-[9px] font-bold uppercase text-on-surface-variant transition-colors border border-outline-variant/30">Intense</button>
                             </div>
+                        </div>
+                        <div className="space-y-4 xl:col-span-2">
+                            <label className="text-[10px] font-black text-on-primary-container uppercase tracking-widest pl-1">Easing</label>
                             <div className="relative">
                               <select 
-                                  value={activeScene.transition || 'Cut'}
-                                  onChange={(e) => updateActiveScene({ transition: e.target.value })}
+                                  value={activeScene.motionEasing || 'Linear'}
+                                  onChange={(e) => updateActiveScene({ motionEasing: e.target.value })}
                                   className="w-full bg-surface/50 border border-primary/20 rounded-2xl px-4 py-3 text-sm font-bold text-primary outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
                               >
-                                  {TRANSITIONS.map(t => <option key={t.id} value={t.label}>{t.label}</option>)}
+                                  {['Linear', 'Ease-In', 'Ease-Out', 'Ease-In-Out'].map(t => <option key={t} value={t}>{t}</option>)}
                               </select>
                               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
                                 <ChevronDown className="w-4 h-4" />
                               </div>
                             </div>
                         </div>
-                        <div className="space-y-4">
-                            <label className="text-[10px] font-black text-on-primary-container uppercase tracking-widest pl-1">Motion Intensity</label>
-                            <div className="flex items-center gap-4 py-2">
-                              <input 
-                                  type="range" min="1" max="10" 
-                                  value={activeScene.motionIntensity || 5}
-                                  onChange={(e) => updateActiveScene({ motionIntensity: parseInt(e.target.value) })}
-                                  className="flex-1 accent-primary h-1.5 bg-primary/20 rounded-full appearance-none cursor-pointer"
-                              />
-                              <span className="text-sm font-mono font-bold text-primary w-6">{activeScene.motionIntensity || 5}</span>
-                            </div>
+                        <div className="space-y-4 xl:col-span-1">
+                            <label className="text-[10px] font-black text-on-primary-container uppercase tracking-widest pl-1">Duration (s)</label>
+                            <input 
+                                type="number"
+                                min="1"
+                                max="60"
+                                value={activeScene.videoDuration || 4}
+                                onChange={(e) => updateActiveScene({ videoDuration: Math.max(1, parseInt(e.target.value) || 1) })}
+                                className="w-full bg-surface/50 border border-primary/20 rounded-2xl px-4 py-2.5 text-sm font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                            />
                         </div>
-                        <div className="md:col-span-3 pt-4 flex justify-end">
+                        <div className="md:col-span-2 xl:col-span-12 pt-4 flex items-center justify-between">
+                            <label className="flex items-center gap-2 cursor-pointer group">
+                                <div className="relative flex items-center justify-center">
+                                    <input type="checkbox" checked={autoPlayPreview} onChange={(e) => setAutoPlayPreview(e.target.checked)} className="peer sr-only" />
+                                    <div className="w-10 h-6 bg-surface-variant/50 rounded-full peer-checked:bg-primary transition-colors border border-outline-variant/30"></div>
+                                    <div className="absolute left-1 top-1 w-4 h-4 bg-on-surface-variant rounded-full peer-checked:translate-x-4 peer-checked:bg-on-primary transition-transform shadow-sm"></div>
+                                </div>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant group-hover:text-primary transition-colors">Auto-Play Preview</span>
+                            </label>
                             <button 
                                 onClick={generateVideo}
                                 disabled={!!isGenerating || !activeScene.imageUrl}
@@ -787,20 +957,13 @@ export default function AssetWorkspace() {
                         </div>
                     </div>
                 </div>
-                <div className="flex gap-4 overflow-x-auto pb-8 custom-scrollbar items-center px-4 -mx-4">
+                <Reorder.Group axis="x" values={project.scenes} onReorder={(newScenes) => onUpdate({ ...project, scenes: newScenes })} className="flex gap-4 overflow-x-auto pb-8 custom-scrollbar items-center px-4 -mx-4">
                     {project.scenes.map((s, idx) => {
-                        const isDragging = draggedIdx === idx;
-                        const isDropTarget = dropTargetIdx === idx;
                         const isActive = activeScene.id === s.id;
                         
                         return (
-                            <React.Fragment key={s.id}>
-                                {/* Drop Indicators & Inter-Node Logistics */}
-                                {isDropTarget && dropIndicatorPos === 'before' && draggedIdx !== idx && draggedIdx !== idx - 1 && (
-                                    <div className="w-1.5 h-24 bg-primary rounded-full animate-pulse mx-2 flex-shrink-0 shadow-[0_0_15px_rgba(var(--primary),0.5)]" />
-                                )}
-
-                                {idx > 0 && !(isDropTarget && dropIndicatorPos === 'before') && (
+                            <Reorder.Item value={s} key={s.id} className="flex items-center gap-4 relative">
+                                {idx > 0 && (
                                     <div className="flex flex-col items-center gap-2 min-w-[50px] relative" ref={activeTimelineTransitionIdx === idx ? timelineTransitionRef : null}>
                                         <button 
                                             onClick={() => setActiveTimelineTransitionIdx(activeTimelineTransitionIdx === idx ? null : idx)}
@@ -861,19 +1024,14 @@ export default function AssetWorkspace() {
                                     </div>
                                 )}
                                 
-                                <div className="relative group/node">
+                                <div>
                                     <button
-                                        draggable
-                                        onDragStart={() => handleDragStart(idx)}
-                                        onDragOver={(e) => handleDragOver(e, idx)}
-                                        onDrop={(e) => handleDrop(e, idx)}
-                                        onDragEnd={handleDragEnd}
                                         onClick={() => setSelectedSceneId(s.id)}
-                                        className={`flex-shrink-0 w-44 aspect-video rounded-3xl border-2 transition-all duration-300 relative overflow-hidden group/thumb ${
+                                        className={`flex-shrink-0 w-44 aspect-video rounded-3xl border-2 transition-all duration-300 relative overflow-hidden group/thumb cursor-grab active:cursor-grabbing ${
                                             isActive 
                                               ? 'border-primary scale-110 shadow-2xl shadow-primary/20 z-10' 
                                               : 'border-outline-variant/30 opacity-60 hover:opacity-100 hover:scale-105 saturate-0 hover:saturate-100'
-                                        } ${isDragging ? 'opacity-20 scale-95 grayscale blur-sm' : ''}`}
+                                        }`}
                                     >
                                         {s.imageUrl ? (
                                             <img src={s.imageUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -882,14 +1040,14 @@ export default function AssetWorkspace() {
                                               <span className="text-[10px] font-black text-on-surface-variant/40 tracking-widest uppercase">Node_{idx + 1}</span>
                                             </div>
                                         )}
-                                        <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover/thumb:opacity-100 transition-opacity">
+                                        <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover/thumb:opacity-100 transition-opacity pointer-events-none">
                                           <p className="text-[8px] font-bold text-white uppercase tracking-widest truncate">{s.description}</p>
                                         </div>
-                                        <div className="absolute top-2 left-2 bg-surface/80 backdrop-blur-md px-2 py-1 rounded-lg text-[9px] font-black text-on-surface shadow-sm border border-outline-variant/30 group-hover/thumb:bg-primary group-hover/thumb:text-on-primary transition-colors">
+                                        <div className="absolute top-2 left-2 bg-surface/80 backdrop-blur-md px-2 py-1 rounded-lg text-[9px] font-black text-on-surface shadow-sm border border-outline-variant/30 group-hover/thumb:bg-primary group-hover/thumb:text-on-primary transition-colors pointer-events-none">
                                             N_{idx + 1}
                                         </div>
                                         {s.videoUrl && (
-                                            <div className="absolute top-2 right-2 p-1.5 bg-primary rounded-lg shadow-lg">
+                                            <div className="absolute top-2 right-2 p-1.5 bg-primary rounded-lg shadow-lg pointer-events-none">
                                                 <Video className="w-3 h-3 text-on-primary" />
                                             </div>
                                         )}
@@ -945,14 +1103,10 @@ export default function AssetWorkspace() {
                                         </div>
                                     )}
                                 </div>
-
-                                {isDropTarget && dropIndicatorPos === 'after' && draggedIdx !== idx && draggedIdx !== idx + 1 && (
-                                    <div className="w-1.5 h-24 bg-primary rounded-full animate-pulse mx-2 flex-shrink-0 shadow-[0_0_15px_rgba(var(--primary),0.5)]" />
-                                )}
-                            </React.Fragment>
+                            </Reorder.Item>
                         );
                     })}
-                </div>
+                </Reorder.Group>
             </div>
           </div>
         </motion.div>

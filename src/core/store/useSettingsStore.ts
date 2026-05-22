@@ -10,6 +10,7 @@ interface SystemSettings {
   framerate: 24 | 30 | 60;
   theme: 'dark' | 'midnight' | 'oled';
   performanceMode: boolean;
+  autoSync: boolean;
 }
 
 interface SettingsState {
@@ -38,7 +39,8 @@ export const useSettingsStore = create<SettingsState>()(
         defaultResolution: '1080p',
         framerate: 30,
         theme: 'dark',
-        performanceMode: false
+        performanceMode: false,
+        autoSync: false
       },
       updateProvider: (config) => set((state) => ({
         providers: state.providers.map(p => p.type === config.type ? config : p)
@@ -58,6 +60,7 @@ export const useSettingsStore = create<SettingsState>()(
         providers: state.providers,
         activeProviderType: state.activeProviderType,
         clonedVoices: state.clonedVoices,
+        systemSettings: state.systemSettings,
       })
     }
   )

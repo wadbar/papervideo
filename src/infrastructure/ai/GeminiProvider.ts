@@ -173,12 +173,15 @@ export class GeminiProvider implements AIProvider {
     });
   }
 
-  async generateVideo(sceneDescription: string, baseImageUrl: string): Promise<string> {
+  async generateVideo(sceneDescription: string, baseImageUrl: string, duration = 4, motionIntensity = 5, easing?: string, motionType?: string): Promise<string> {
     return this.executeWithTelemetry('VideoSynthesis', async () => {
         const REPLICATE_API_TOKEN = process.env.VITE_REPLICATE_API_TOKEN || process.env.REPLICATE_API_TOKEN;
         if (!REPLICATE_API_TOKEN) {
              throw new Error("Missing REPLICATE_API_TOKEN for video synthesis integration.");
         }
+
+        const motionBucketId = Math.max(1, Math.min(255, motionIntensity * 25));
+        const videoLength = duration > 3 ? "25_frames_with_svd_xt" : "14_frames_with_svd";
 
         // Using Stability AI's Stable Video Diffusion API via Replicate
         const response = await fetch("https://api.replicate.com/v1/predictions", {
@@ -193,9 +196,9 @@ export class GeminiProvider implements AIProvider {
                     cond_aug: 0.02,
                     decoding_t: 7,
                     input_image: baseImageUrl,
-                    video_length: "14_frames_with_svd",
+                    video_length: videoLength,
                     sizing_strategy: "maintain_aspect_ratio",
-                    motion_bucket_id: 127,
+                    motion_bucket_id: motionBucketId,
                     frames_per_second: 6
                 }
             })

@@ -17,11 +17,24 @@ interface VideoPreviewProps {
   url: string;
   poster?: string;
   effects?: PostProcessingEffects;
+  autoPlay?: boolean;
+  splitView?: boolean;
 }
 
-export default function VideoPreview({ url, poster, effects }: VideoPreviewProps) {
+export default function VideoPreview({ url, poster, effects, autoPlay = false, splitView = false }: VideoPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const rawVideoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(autoPlay);
+
+  useEffect(() => {
+    if (autoPlay && videoRef.current) {
+        setIsPlaying(true);
+        videoRef.current.play().catch(e => console.log('Autoplay prevented', e));
+        if (rawVideoRef.current) {
+            rawVideoRef.current.play().catch(e => console.log('Autoplay prevented', e));
+        }
+    }
+  }, [url, autoPlay]);
   const [progress, setProgress] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
   const [isLooping, setIsLooping] = useState(true);
@@ -32,8 +45,10 @@ export default function VideoPreview({ url, poster, effects }: VideoPreviewProps
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
+        if (rawVideoRef.current) rawVideoRef.current.pause();
       } else {
         videoRef.current.play();
+        if (rawVideoRef.current) rawVideoRef.current.play();
       }
       setIsPlaying(!isPlaying);
     }
@@ -51,6 +66,7 @@ export default function VideoPreview({ url, poster, effects }: VideoPreviewProps
     if (videoRef.current) {
       const time = (val / 100) * videoRef.current.duration;
       videoRef.current.currentTime = time;
+      if (rawVideoRef.current) rawVideoRef.current.currentTime = time;
       setProgress(val);
     }
   };
@@ -69,38 +85,89 @@ export default function VideoPreview({ url, poster, effects }: VideoPreviewProps
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
     >
-      <video
-        ref={videoRef}
-        src={url}
-        poster={poster}
-        className="w-full h-full object-cover transition-all duration-700 ease-in-out"
-        style={{ filter: showDirect ? 'none' : getFilterString(effects) }}
-        onTimeUpdate={handleTimeUpdate}
-        onClick={togglePlay}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        loop={isLooping}
-        muted={isMuted}
-        playsInline
-      />
-
-      {/* FX Overlays */}
-      {!showDirect && (
+      {splitView ? (
+        <div className="flex w-full h-full relative cursor-pointer" onClick={togglePlay}>
+            <div className="w-1/2 h-full overflow-hidden border-r-2 border-primary relative z-20">
+                <video
+                    ref={rawVideoRef}
+                    src={url}
+                    poster={poster}
+                    className="w-[200%] max-w-none h-full object-cover pointer-events-none"
+                    style={{ filter: 'none', objectPosition: 'left center' }}
+                    loop={isLooping}
+                    muted={isMuted}
+                    playsInline
+                />
+                <div className="absolute bottom-6 left-6 bg-black/60 px-3 py-1.5 rounded-lg text-[10px] font-black text-white tracking-widest scale-75 origin-bottom-left transition-transform group-hover:scale-100">RAW</div>
+            </div>
+            <div className="w-1/2 h-full overflow-hidden relative">
+                <video
+                    ref={videoRef}
+                    src={url}
+                    poster={poster}
+                    className="w-[200%] max-w-none h-full object-cover -ml-[100%] pointer-events-none"
+                    style={{ filter: showDirect ? 'none' : getFilterString(effects), objectPosition: 'right center' }}
+                    onTimeUpdate={handleTimeUpdate}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    loop={isLooping}
+                    muted={isMuted}
+                    playsInline
+                />
+                {!showDirect && effects?.grain && effects.grain > 0 && (
+                    <div 
+                        className="absolute inset-0 pointer-events-none z-10 opacity-[0.03] mix-blend-overlay"
+                        style={{ 
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                            opacity: effects.grain * 0.15 
+                        }}
+                    />
+                )}
+                {!showDirect && effects?.vignette && effects.vignette > 0 && (
+                    <div 
+                        className="absolute inset-0 pointer-events-none transition-all duration-500 ease-in-out z-10"
+                        style={getVignetteStyle(effects.vignette)}
+                    />
+                )}
+                <div className="absolute bottom-6 right-6 bg-primary/80 px-3 py-1.5 rounded-lg text-[10px] font-black text-white tracking-widest scale-75 origin-bottom-right transition-transform group-hover:scale-100">PROCESSED</div>
+            </div>
+        </div>
+      ) : (
         <>
-            {effects?.grain && effects.grain > 0 && (
-                <div 
-                    className="absolute inset-0 pointer-events-none z-10 opacity-[0.03] mix-blend-overlay"
-                    style={{ 
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-                        opacity: effects.grain * 0.15 
-                    }}
-                />
-            )}
-            {effects?.vignette && effects.vignette > 0 && (
-                <div 
-                    className="absolute inset-0 pointer-events-none transition-all duration-500 ease-in-out z-10"
-                    style={getVignetteStyle(effects.vignette)}
-                />
+            <video
+              ref={videoRef}
+              src={url}
+              poster={poster}
+              className="w-full h-full object-cover transition-all duration-700 ease-in-out"
+              style={{ filter: showDirect ? 'none' : getFilterString(effects) }}
+              onTimeUpdate={handleTimeUpdate}
+              onClick={togglePlay}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              loop={isLooping}
+              muted={isMuted}
+              playsInline
+            />
+
+            {/* FX Overlays */}
+            {!showDirect && (
+              <>
+                  {effects?.grain && effects.grain > 0 && (
+                      <div 
+                          className="absolute inset-0 pointer-events-none z-10 opacity-[0.03] mix-blend-overlay"
+                          style={{ 
+                              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                              opacity: effects.grain * 0.15 
+                          }}
+                      />
+                  )}
+                  {effects?.vignette && effects.vignette > 0 && (
+                      <div 
+                          className="absolute inset-0 pointer-events-none transition-all duration-500 ease-in-out z-10"
+                          style={getVignetteStyle(effects.vignette)}
+                      />
+                  )}
+              </>
             )}
         </>
       )}
