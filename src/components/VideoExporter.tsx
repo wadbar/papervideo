@@ -244,6 +244,10 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
     };
   }, []);
 
+  const [exportETA, setExportETA] = useState<string>('Calculating...');
+  const exportStartTime = useRef<number>(0);
+  const exportProgressHistory = useRef<{loaded: number, time: number}[]>([]);
+
   const startExport = () => {
     if (isExporting) return;
     if (!isReadyToExport) {
@@ -252,11 +256,34 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
     }
     setIsExporting(true);
     setProgress(0);
+    setExportETA('Calculating...');
+    exportStartTime.current = Date.now();
+    exportProgressHistory.current = [];
     
     if (exportIntervalRef.current) clearInterval(exportIntervalRef.current);
     exportIntervalRef.current = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 100) {
+        const next = prev + 2;
+        
+        const now = Date.now();
+        const history = exportProgressHistory.current;
+        history.push({ loaded: next, time: now });
+        if (history.length > 5) history.shift();
+        
+        if (history.length > 1) {
+          const first = history[0];
+          const last = history[history.length - 1];
+          const timeDiff = last.time - first.time;
+          const sizeDiff = last.loaded - first.loaded;
+          if (timeDiff > 100 && sizeDiff > 0) { 
+            const speed = sizeDiff / timeDiff; // percent per ms
+            const remaining = 100 - next;
+            const etaMs = remaining / speed;
+            setExportETA(formatETA(etaMs));
+          }
+        }
+
+        if (next >= 100) {
           if (exportIntervalRef.current) clearInterval(exportIntervalRef.current);
           setIsExporting(false);
           onUpdate({ ...project, status: 'completed' });
@@ -268,7 +295,7 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
           });
           return 100;
         }
-        return prev + 2;
+        return next;
       });
     }, 100);
   };
@@ -476,8 +503,8 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
 
               <div className="mt-6 flex justify-between items-center px-1">
                 <div className="flex items-center gap-3">
-                    <span className="text-[9px] text-on-surface-variant font-black uppercase tracking-[0.2em] opacity-40">Core Cluster</span>
-                    <div className="flex gap-1">
+                    <span className="text-[9px] text-on-surface-variant font-black uppercase tracking-[0.2em] opacity-80">ETA: {exportETA}</span>
+                    <div className="flex gap-1 ml-4">
                       {[...Array(12)].map((_, i) => (
                         <div 
                           key={i} 

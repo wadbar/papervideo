@@ -19,6 +19,32 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useProjectStore } from '../core/store/useProjectStore';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as RechartsTooltip, 
+  ResponsiveContainer,
+  Legend
+} from 'recharts';
+
+const CustomChartDot = (props: any) => {
+  const { cx, cy, payload, stroke, dataKey } = props;
+  
+  const isJump = dataKey === 'brightness' ? payload.brightnessJump : payload.contrastJump;
+
+  if (isJump) {
+    return (
+      <circle cx={cx} cy={cy} r={6} fill="var(--color-error)" stroke="var(--color-surface)" strokeWidth={2} className="animate-pulse" />
+    );
+  }
+  
+  return (
+    <circle cx={cx} cy={cy} r={4} fill="var(--color-surface)" stroke={stroke} strokeWidth={2} />
+  );
+};
 
 interface Metric {
   provider: string;
@@ -88,6 +114,33 @@ export default function ObservabilityDashboard() {
     }
 
     return jumps;
+  }, [activeProject]);
+
+  const chartData = React.useMemo(() => {
+    if (!activeProject || !activeProject.scenes) return [];
+    
+    return activeProject.scenes.map((scene, idx) => {
+      const brightness = scene.postProcessing?.brightness ?? 100;
+      const contrast = scene.postProcessing?.contrast ?? 100;
+      
+      let brightnessJump = false;
+      let contrastJump = false;
+      if (idx > 0) {
+        const prev = activeProject.scenes[idx - 1];
+        const prevB = prev.postProcessing?.brightness ?? 100;
+        const prevC = prev.postProcessing?.contrast ?? 100;
+        if (Math.abs(brightness - prevB) > 15) brightnessJump = true;
+        if (Math.abs(contrast - prevC) > 15) contrastJump = true;
+      }
+      
+      return {
+        name: `N-${idx + 1}`,
+        brightness,
+        contrast,
+        brightnessJump,
+        contrastJump
+      };
+    });
   }, [activeProject]);
 
   const fetchMetrics = async () => {
@@ -171,6 +224,37 @@ export default function ObservabilityDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <div className="lg:col-span-3 space-y-8">
+            <div className="flex items-center justify-between ml-1">
+                <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-on-surface-variant">Visual Styling Telemetry</h2>
+                <div className="h-px flex-1 bg-outline-variant/20 mx-6" />
+            </div>
+            <div className="bg-surface border border-outline-variant/30 rounded-[2.5rem] p-8 h-[360px] relative">
+               {chartData.length > 0 ? (
+                   <ResponsiveContainer width="100%" height="100%">
+                     <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-outline-variant)" opacity={0.3} vertical={false} />
+                       <XAxis dataKey="name" tick={{ fill: 'var(--color-on-surface-variant)', fontSize: 10, fontWeight: 700 }} tickLine={false} axisLine={false} dy={10} />
+                       <YAxis domain={['auto', 'auto']} tick={{ fill: 'var(--color-on-surface-variant)', fontSize: 10, fontWeight: 700 }} tickLine={false} axisLine={false} dx={-10} />
+                       <RechartsTooltip 
+                         contentStyle={{ backgroundColor: 'var(--color-surface-container-high)', borderRadius: '1rem', border: '1px solid var(--color-outline-variant)', color: 'var(--color-on-surface)' }}
+                         itemStyle={{ fontWeight: 700, fontSize: 12 }}
+                         labelStyle={{ fontWeight: 900, marginBottom: '0.5rem', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.6 }}
+                       />
+                       <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', paddingTop: '20px' }}/>
+                       <Line type="monotone" dataKey="brightness" stroke="var(--color-primary)" strokeWidth={3} dot={CustomChartDot} activeDot={{ r: 6 }} />
+                       <Line type="monotone" dataKey="contrast" stroke="var(--color-tertiary)" strokeWidth={3} dot={CustomChartDot} activeDot={{ r: 6 }} />
+                     </LineChart>
+                   </ResponsiveContainer>
+               ) : (
+                   <div className="py-12 text-center flex flex-col items-center justify-center h-full gap-3">
+                       <Eye className="w-8 h-8 text-on-surface-variant/20 animate-pulse" />
+                       <p className="text-[10px] font-black uppercase text-on-surface-variant tracking-widest opacity-40 italic">No styling telemetry available</p>
+                   </div>
+               )}
+            </div>
+          </div>
+          
           {/* Main Provider Performance */}
           <div className="lg:col-span-2 space-y-8">
             <div className="flex items-center justify-between ml-1">

@@ -115,3 +115,21 @@ body {
   .m3-elevation-2 { box-shadow: var(--md-sys-elevation-2); }
   .m3-elevation-3 { box-shadow: var(--md-sys-elevation-3); }
 }
+
+@layer components {
+  .m3-button-filled {
+    @apply px-6 py-2 rounded-3xl font-bold bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-md hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed;
+  }
+  .m3-button-tonal {
+    @apply px-6 py-2 rounded-3xl font-bold bg-[var(--md-sys-color-secondary-container)] text-[var(--md-sys-color-on-secondary-container)] shadow-sm hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed;
+  }
+  .m3-button-text {
+    @apply px-6 py-2 rounded-3xl font-bold text-[var(--md-sys-color-on-surface-variant)] hover:bg-[var(--md-sys-color-surface-variant)] transition-colors;
+  }
+  .m3-input {
+    @apply w-full bg-[var(--md-sys-color-surface-variant)] text-[var(--md-sys-color-on-surface)] rounded-3xl px-4 py-3 border border-[var(--md-sys-color-outline)] focus:border-[var(--md-sys-color-primary)] outline-none transition-all placeholder:text-[var(--md-sys-color-on-surface-variant)];
+  }
+  .m3-card {
+    @apply bg-[var(--md-sys-color-surface-container)] rounded-3xl p-6 flex flex-col gap-4 border border-[var(--md-sys-color-outline)] shadow-sm;
+  }
+}
