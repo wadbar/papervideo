@@ -9,7 +9,7 @@ import { generateLoginToken } from "./src/server/auth.middleware";
 // ==========================================
 // TELEMETRY & LOGGING (STRUCTURED)
 // ==========================================
-const sysLog = (level: "INFO" | "WARN" | "ERROR", component: string, message: string, meta: Record<string, any> = {}) => {
+const sysLog = (level: "INFO" | "WARN" | "ERROR", component: string, message: string, meta: Record<string, unknown> = {}) => {
   const timestamp = new Date().toISOString();
   let color = "\x1b[36m"; // Cyan for INFO
   if (level === "WARN") color = "\x1b[33m"; // Yellow
@@ -29,8 +29,9 @@ process.on("uncaughtException", (error: Error) => {
   process.exit(1); 
 });
 
-process.on("unhandledRejection", (reason: any) => {
-  sysLog("ERROR", "PROCESS", "Unhandled Promise Rejection Detected", { reason });
+process.on("unhandledRejection", (reason: unknown) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  sysLog("ERROR", "PROCESS", "Unhandled Promise Rejection Detected", { reason: msg });
   // Logging only, avoiding immediate crash depending on industrial policy, but normally we should exit.
 });
 
@@ -119,8 +120,9 @@ async function startServer() {
         const token = generateLoginToken();
         res.json({ token });
         sysLog("INFO", "AUTH", "Token successfully generated.");
-      } catch (error: any) {
-        sysLog("ERROR", "AUTH", "Failed to generate login token.", { error: error.message });
+      } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        sysLog("ERROR", "AUTH", "Failed to generate login token.", { error: err.message });
         res.status(500).json({ error: "Internal Auth Failure" });
       }
     });
@@ -145,28 +147,9 @@ async function startServer() {
     serverInstance = app.listen(PORT, "0.0.0.0", () => {
       sysLog("INFO", "SERVER", `API Server running natively on port ${PORT} with industrial shielding.`);
     });
-
-    const shutdown = (signal: NodeJS.Signals) => {
-      sysLog("WARN", "SYSTEM", `Intercepted ${signal}. Initiating deterministic shut down...`);
-      if (serverInstance) {
-        serverInstance.close(() => {
-          sysLog("INFO", "SYSTEM", "HTTP connections successfully drained. Terminating.");
-          process.exit(0);
-        });
-        
-        setTimeout(() => {
-          sysLog("ERROR", "SYSTEM", "Draining timeout exceeded. Forcing thread destruction.");
-          process.exit(1);
-        }, 10000).unref();
-      } else {
-        process.exit(0);
-      }
-    };
-
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
-  } catch (error: any) {
-    sysLog("ERROR", "BOOT", "Fatal error during startup loop. Halting initialization.", { err: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    sysLog("ERROR", "BOOT", "Fatal error during startup loop. Halting initialization.", { err: err.message });
     process.exit(1);
   }
 }

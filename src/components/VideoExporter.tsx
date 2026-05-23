@@ -22,7 +22,9 @@ import {
   Tags,
   ChevronLeft,
   Video,
-  Monitor
+  Monitor,
+  Clock,
+  Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { VideoProject } from '../core/domain/types';
@@ -39,6 +41,111 @@ interface VideoExporterProps {
   onUpdate: (project: VideoProject) => void;
   onPrev: () => void;
 }
+
+const SEOAudit = ({ title, description, tags, project }: { title: string, description: string, tags: string, project: VideoProject }) => {
+  const [score, setScore] = useState(0);
+  const [validations, setValidations] = useState<{label: string, passed: boolean, msg: string}[]>([]);
+
+  useEffect(() => {
+    let newScore = 0;
+    const checks: {label: string, passed: boolean, msg: string}[] = [];
+
+    // Title 
+    if (title.length >= 30 && title.length <= 70) {
+      newScore += 25;
+      checks.push({ label: 'Title Length', passed: true, msg: 'Optimal length (30-70)' });
+    } else if (title.length > 5 && title.length < 30) {
+       newScore += 10;
+       checks.push({ label: 'Title Length', passed: false, msg: 'Too short (needs 30+)' });
+    } else {
+       checks.push({ label: 'Title Length', passed: false, msg: 'Missing or too long' });
+    }
+
+    // Description Clarity & Narrations
+    const combinedNarrations = project.scenes.map((s: any) => s.narrationText).join(' ');
+    const descWordCount = description.split(' ').filter(w => w.length > 0).length;
+    
+    if (description.length > 100 && descWordCount > 15) {
+      newScore += 25;
+      checks.push({ label: 'Description Clarity', passed: true, msg: 'Sufficient depth & clarity' });
+    } else {
+      checks.push({ label: 'Description Clarity', passed: false, msg: 'Needs detail (>100 chars)' });
+    }
+
+    // Tags
+    const tagCount = tags.split(',').filter(t => t.trim().length > 0).length;
+    if (tagCount >= 5) {
+      newScore += 20;
+      checks.push({ label: 'Tag Frequency', passed: true, msg: 'Optimal tags (5+)' });
+    } else if (tagCount > 0) {
+       newScore += 10;
+       checks.push({ label: 'Tag Frequency', passed: false, msg: 'More tags needed' });
+    } else {
+       checks.push({ label: 'Tag Frequency', passed: false, msg: 'Missing tags' });
+    }
+
+    // Keyword Density (in Meta + Narrations)
+    const keywords = project.keywords || [];
+    if (keywords.length > 0) {
+        const fullContent = `${title} ${description} ${combinedNarrations}`.toLowerCase();
+        const matchingKeywords = keywords.filter((kw: string) => fullContent.includes(kw.toLowerCase()));
+        
+        if (matchingKeywords.length >= keywords.length * 0.5) {
+          newScore += 30;
+          checks.push({ label: 'Keyword Density', passed: true, msg: 'Strong presence in meta & scenes' });
+        } else if (matchingKeywords.length > 0) {
+          newScore += 15;
+          checks.push({ label: 'Keyword Density', passed: false, msg: 'Sub-optimal keyword density' });
+        } else {
+          checks.push({ label: 'Keyword Density', passed: false, msg: 'Missing keywords in content' });
+        }
+    } else {
+       newScore += 30;
+       checks.push({ label: 'Keyword Density', passed: true, msg: 'No keywords defined' });
+    }
+
+    setScore(Math.min(newScore, 100));
+    setValidations(checks);
+  }, [title, description, tags, project]);
+
+  return (
+    <div className="bg-surface-variant/5 rounded-[2rem] border border-outline-variant/30 p-8 relative overflow-hidden shadow-sm">
+        <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px]" />
+        
+        <div className="flex items-center justify-between mb-6 relative z-10">
+            <h4 className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.3em] text-[var(--md-sys-color-on-surface-variant)]">
+              <Sparkles className="w-4 h-4 text-[var(--md-sys-color-on-surface)]" />
+              SEO Audit Score
+            </h4>
+            <span className="text-xl font-mono font-black text-[var(--md-sys-color-on-surface)]">
+                {score}%
+            </span>
+        </div>
+
+        <div className="h-2 w-full bg-[var(--md-sys-color-surface-variant)] rounded-full overflow-hidden mb-8 p-0.5 border border-[var(--md-sys-color-outline)]">
+            <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${score}%` }}
+                className="h-full rounded-full transition-all duration-1000 bg-[var(--md-sys-color-on-surface)]"
+            />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
+           {validations.map((v, i) => (
+              <div key={i} className={`flex items-start gap-4 p-4 rounded-2xl group transition-all duration-300 ${v.passed ? 'bg-surface/60 border border-outline-variant/30 hover:border-primary/30' : 'bg-surface/60 border border-outline-variant/30 hover:border-error/30'}`}>
+                 <div className={`mt-0.5 flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-colors duration-300 ${v.passed ? 'bg-primary/10 text-primary group-hover:bg-primary/20' : 'bg-error/10 text-error group-hover:bg-error/20'}`}>
+                    {v.passed ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                 </div>
+                 <div className="flex flex-col gap-1">
+                    <p className={`text-xs font-bold uppercase tracking-wider transition-colors duration-300 ${v.passed ? 'text-on-surface group-hover:text-primary' : 'text-on-surface group-hover:text-error'}`}>{v.label}</p>
+                    <p className="text-[10px] font-medium text-on-surface-variant leading-relaxed opacity-80">{v.msg}</p>
+                 </div>
+              </div>
+           ))}
+        </div>
+    </div>
+  );
+};
 
 export default function VideoExporter({ project, onUpdate, onPrev }: VideoExporterProps) {
   const { theme } = useTheme();
@@ -65,7 +172,6 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
   const [seoResults, setSeoResults] = useState<{ titles: string[], description: string, tags: string[] } | null>(null);
   const [thumbnailSuggestions, setThumbnailSuggestions] = useState<any[] | null>(null);
   const [showSEOPanel, setShowSEOPanel] = useState(false);
-  const [seoScore, setSeoScore] = useState(0);
   const [isSuggestingTransition, setIsSuggestingTransition] = useState(false);
   const uploadStartTime = useRef<number>(0);
 
@@ -126,35 +232,6 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
     }
   };
 
-  const calculateSEOScore = () => {
-      let score = 0;
-      // Title logic
-      if (uploadTitle.length > 5 && uploadTitle.length < 30) score += 10;
-      else if (uploadTitle.length >= 30 && uploadTitle.length <= 70) score += 25;
-      
-      // Description logic
-      if (uploadDescription.length > 100) score += 25;
-      
-      // Tags logic
-      const tagCount = uploadTags.split(',').filter(t => t.trim().length > 0).length;
-      if (tagCount > 0 && tagCount < 5) score += 10;
-      else if (tagCount >= 5) score += 20;
-
-      // Keywords match
-      if (project.keywords) {
-          const matchingKeywords = project.keywords.filter(kw => 
-              uploadTitle.toLowerCase().includes(kw.toLowerCase()) || 
-              uploadDescription.toLowerCase().includes(kw.toLowerCase())
-          );
-          if (matchingKeywords.length > 0) score += 30;
-      }
-      
-      setSeoScore(Math.min(score, 100));
-  };
-
-  useEffect(() => {
-     calculateSEOScore();
-  }, [uploadTitle, uploadDescription, uploadTags]);
   const uploadProgressHistory = useRef<{loaded: number, time: number}[]>([]);
 
   const YOUTUBE_CATEGORIES = [
@@ -492,7 +569,7 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
                 </div>
               </div>
 
-              <div className="h-3 bg-surface-variant/30 rounded-full overflow-hidden border border-outline-variant/30 p-0.5">
+              <div className="h-3 bg-surface-variant/30 rounded-full overflow-hidden border border-outline-variant/30 p-0.5 mb-6">
                 <motion.div 
                   className="h-full bg-primary rounded-full"
                   initial={{ width: 0 }}
@@ -501,17 +578,39 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
                 />
               </div>
 
-              <div className="mt-6 flex justify-between items-center px-1">
-                <div className="flex items-center gap-3">
-                    <span className="text-[9px] text-on-surface-variant font-black uppercase tracking-[0.2em] opacity-80">ETA: {exportETA}</span>
-                    <div className="flex gap-1 ml-4">
-                      {[...Array(12)].map((_, i) => (
-                        <div 
-                          key={i} 
-                          className={`w-1 h-3 rounded-full transition-all duration-300 ${i < Math.floor(progress / (100 / 12)) ? 'bg-primary scale-x-125' : 'bg-outline-variant/40'}`}
-                        />
-                      ))}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                {[
+                  { label: 'Initial Analysis', threshold: 0 },
+                  { label: 'Visual Synthesis', threshold: 25 },
+                  { label: 'Audio Mixing', threshold: 50 },
+                  { label: 'Final Encoding', threshold: 75 }
+                ].map((step, idx) => (
+                  <div key={idx} className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                       <div className={`w-3 h-3 rounded-full flex-shrink-0 transition-colors duration-500 ${progress >= step.threshold ? (progress >= step.threshold + 25 || progress === 100 ? 'bg-primary' : 'bg-primary animate-pulse') : 'bg-surface-variant'}`} />
+                       <span className={`text-xs font-bold uppercase tracking-wider transition-colors duration-500 ${progress >= step.threshold ? 'text-on-surface' : 'text-on-surface-variant opacity-50'}`}>{step.label}</span>
                     </div>
+                    <div className="h-1 w-full bg-surface-variant/30 rounded-full overflow-hidden">
+                       <motion.div 
+                          className="h-full bg-primary"
+                          initial={{ width: 0 }}
+                          animate={{ width: progress >= step.threshold + 25 || progress === 100 ? '100%' : progress >= step.threshold ? `${((progress - step.threshold) / 25) * 100}%` : '0%' }}
+                       />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 flex justify-between items-center px-1 border-t border-outline-variant/20 pt-6">
+                <div className="flex items-center gap-6">
+                    <span className="text-[10px] text-on-surface-variant font-black uppercase tracking-[0.2em] opacity-80 flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5" />
+                      ETA: {exportETA}
+                    </span>
+                    <span className="text-[10px] text-on-surface-variant font-black uppercase tracking-[0.2em] opacity-80 flex items-center gap-2">
+                      <Activity className="w-3.5 h-3.5" />
+                      Bandwidth: {(progress * 0.42).toFixed(1)} MB/s
+                    </span>
                 </div>
                 <span className="text-[9px] font-mono font-black text-primary opacity-60 uppercase tracking-widest">VP9_COMPRESSION_ENABLED</span>
               </div>
@@ -629,7 +728,7 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
                     {['Youtube', 'TikTok', 'Instagram', 'LinkedIn', 'Custom'].map(p => (
                       <button
                         key={p}
-                        onClick={() => p === 'Custom' ? onUpdate({...project, exportSettings: {...project.exportSettings, preset: 'Custom' as any}}) : applyPreset(p)}
+                        onClick={() => p === 'Custom' ? onUpdate({...project, exportSettings: {...(project.exportSettings || { resolution: '1080p', framerate: 60, aspectRatio: '16:9' }), preset: 'Custom'}}) : applyPreset(p)}
                         className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
                           (project.exportSettings?.preset || 'Custom') === p 
                             ? 'bg-primary text-on-primary shadow-sm' 
@@ -763,24 +862,12 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
                     />
                 </div>
 
-                <div className="p-6 bg-surface-variant/5 rounded-3xl border border-outline-variant/20 relative overflow-hidden">
-                    <div className="flex items-center justify-between mb-4">
-                        <span className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Audience Reach Potential</span>
-                        <span className={`text-xs font-mono font-black ${seoScore > 80 ? 'text-primary' : seoScore > 50 ? 'text-secondary' : 'text-error'}`}>
-                            {seoScore}%
-                        </span>
-                    </div>
-                    <div className="h-1.5 w-full bg-surface-variant/30 rounded-full overflow-hidden">
-                        <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${seoScore}%` }}
-                            className={`h-full transition-all duration-1000 ${seoScore > 80 ? 'bg-primary' : seoScore > 50 ? 'bg-secondary' : 'bg-error'}`}
-                        />
-                    </div>
-                    <p className="text-[9px] mt-3 font-medium text-on-surface-variant/60 leading-relaxed uppercase tracking-widest italic">
-                      {seoScore > 80 ? 'Optimal metadata saturation observed' : 'Metadata density optimization required'}
-                    </p>
-                </div>
+                <SEOAudit 
+                    title={uploadTitle} 
+                    description={uploadDescription} 
+                    tags={uploadTags} 
+                    project={project} 
+                />
               </div>
 
               <AnimatePresence>
@@ -992,32 +1079,12 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
                 ) : (
                   <>
                     <div className="space-y-6">
-                      <div className="flex items-center justify-between p-8 bg-primary/5 rounded-[2.5rem] border border-primary/20 relative overflow-hidden group">
-                          {/* Decorative hex pattern */}
-                          <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px]" />
-                          
-                          <div className="flex items-center gap-6 relative">
-                              <div className="relative w-16 h-16 flex items-center justify-center">
-                                  <svg className="w-full h-full -rotate-90">
-                                      <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-on-primary/10" />
-                                      <motion.circle 
-                                          cx="32" cy="32" r="28" 
-                                          stroke="currentColor" strokeWidth="6" 
-                                          fill="transparent" 
-                                          strokeDasharray={175.9}
-                                          initial={{ strokeDashoffset: 175.9 }}
-                                          animate={{ strokeDashoffset: 175.9 - (175.9 * seoScore) / 100 }}
-                                          className={`transition-all duration-1000 ${seoScore > 80 ? 'text-primary' : seoScore > 50 ? 'text-secondary' : 'text-error'}`} 
-                                      />
-                                  </svg>
-                                  <span className={`absolute text-sm font-black font-mono ${seoScore > 80 ? 'text-primary' : seoScore > 50 ? 'text-secondary' : 'text-error'}`}>{seoScore}%</span>
-                              </div>
-                              <div>
-                                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-on-surface">Algorithmic Visibility Index</h4>
-                                  <p className="text-[10px] text-on-surface-variant font-bold mt-1 opacity-60 uppercase tracking-widest italic">NEURAL_SEO_OPTIMIZATION_SYNCED: {seoScore > 75 ? 'TRUE' : 'FALSE'}</p>
-                              </div>
-                          </div>
-                      </div>
+                      <SEOAudit 
+                          title={uploadTitle} 
+                          description={uploadDescription} 
+                          tags={uploadTags} 
+                          project={project} 
+                      />
 
                       <div className="space-y-4">
                         <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 ml-1">Destination Channel Signal</label>

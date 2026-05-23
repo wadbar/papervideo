@@ -141,7 +141,7 @@ function FileManagerSection() {
                 </button>
               ))}
             </div>
-            <button onClick={clearHistory} className="hover:text-[var(--md-sys-color-error)] transition-colors underline underline-offset-2">Clear</button>
+            <button onClick={clearHistory} className="m3-button-text !px-3 !py-1 text-xs hover:!bg-[var(--md-sys-color-error-container)] hover:!text-[var(--md-sys-color-on-error-container)]">Clear</button>
           </div>
         )}
       </div>
@@ -211,11 +211,11 @@ function FileManagerSection() {
 
       {/* Files List Header */}
       <div className="flex items-center gap-4 px-4 text-sm font-bold text-[var(--md-sys-color-on-surface)] border-b border-[var(--md-sys-color-outline)] pb-2">
-        <button className="flex items-center gap-2 hover:text-[var(--md-sys-color-primary)] transition-colors flex-1" onClick={() => { setSortField('name'); setSortAsc(f => !f); }}>
+        <button className="m3-button-text flex items-center gap-2 flex-1 !px-3 !py-2" onClick={() => { setSortField('name'); setSortAsc(f => !f); }}>
           File Name
           <ChevronDown className={`w-4 h-4 transition-transform ${sortField === 'name' && !sortAsc ? 'rotate-180' : ''} ${sortField !== 'name' ? 'opacity-0' : ''}`} />
         </button>
-        <button className="flex items-center gap-2 hover:text-[var(--md-sys-color-primary)] transition-colors" onClick={() => { setSortField('type'); setSortAsc(f => !f); }}>
+        <button className="m3-button-text flex items-center gap-2 !px-3 !py-2" onClick={() => { setSortField('type'); setSortAsc(f => !f); }}>
           Type
           <ChevronDown className={`w-4 h-4 transition-transform ${sortField === 'type' && !sortAsc ? 'rotate-180' : ''} ${sortField !== 'type' ? 'opacity-0' : ''}`} />
         </button>
@@ -386,7 +386,7 @@ export default function Panel() {
              >
                <div className="flex justify-between items-center">
                  <h2 className="text-2xl font-bold text-[var(--md-sys-color-on-surface)]">System Alert</h2>
-                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-[var(--md-sys-color-surface-variant)] rounded-full transition-colors">
+                 <button onClick={() => setIsModalOpen(false)} className="m3-button-tonal !p-2 !min-w-0 !rounded-full">
                    <X className="w-5 h-5 text-[var(--md-sys-color-on-surface-variant)]" />
                  </button>
                </div>
@@ -420,7 +420,7 @@ export default function Panel() {
               </div>
               <button 
                 onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} 
-                className="p-2 hover:bg-[var(--md-sys-color-error)]/20 rounded-full transition-colors flex-shrink-0"
+                className="m3-button-tonal !p-2 !min-w-0 !rounded-full bg-transparent hover:!bg-[var(--md-sys-color-error)]/20 text-[var(--md-sys-color-on-error-container)] flex-shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>

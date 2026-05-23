@@ -15,10 +15,12 @@ import {
   CheckCircle2,
   HardDrive,
   Workflow,
-  Eye
+  Eye,
+  Cloud
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useProjectStore } from '../core/store/useProjectStore';
+import { useSettingsStore } from '../core/store/useSettingsStore';
 import { 
   LineChart, 
   Line, 
@@ -63,6 +65,7 @@ export default function ObservabilityDashboard() {
   const activeProject = useProjectStore(state => {
     return state.projects.find(p => p.id === state.activeProjectId);
   });
+  const autoSync = useSettingsStore(state => state.systemSettings.autoSync);
 
   // Analyze consecutive scenes for visual style transitions
   const consecutiveJumps = React.useMemo(() => {
@@ -170,17 +173,23 @@ export default function ObservabilityDashboard() {
     <div className="flex-1 p-6 sm:p-12 overflow-y-auto custom-scrollbar bg-surface select-none">
       <div className="max-w-7xl mx-auto space-y-12">
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8 mb-4">
-          <div className="space-y-2">
+          <div className="space-y-4">
             <div className="flex items-center gap-4">
                <div className="p-3 bg-primary rounded-2xl shadow-lg shadow-primary/20">
                   <ShieldCheck className="text-on-primary w-8 h-8" />
                </div>
                <h1 className="text-4xl font-black tracking-tight text-on-surface">Telemetry_Nexus</h1>
             </div>
-            <p className="text-on-surface-variant font-bold text-sm tracking-wide uppercase opacity-60 flex items-center gap-2">
-               <Signal className="w-4 h-4 text-primary" />
-               Real-time Monitoring of Distributed Neural Protocols
-            </p>
+            <div className="flex items-center gap-4 flex-wrap">
+               <p className="text-on-surface-variant font-bold text-sm tracking-wide uppercase opacity-60 flex items-center gap-2">
+                  <Signal className="w-4 h-4 text-primary" />
+                  Real-time Monitoring of Distributed Neural Protocols
+               </p>
+               <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${autoSync ? 'bg-tertiary/10 border-tertiary/30 text-tertiary' : 'bg-surface-variant/20 border-outline-variant/30 text-on-surface-variant opacity-60'}`}>
+                  <Cloud className="w-3 h-3" />
+                  <span>{autoSync ? 'Firestore Sync: Active' : 'Firestore Sync: Disabled'}</span>
+               </div>
+            </div>
           </div>
           <button 
             onClick={fetchMetrics}
@@ -285,7 +294,7 @@ export default function ObservabilityDashboard() {
                     initial={{ x: 20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     transition={{ delay: i * 0.1 }}
-                    key={i} 
+                    key={`m-${i}`} 
                     className="flex gap-5 group/item"
                    >
                       <div className="w-1 bg-error/20 rounded-full transition-all group-hover/item:bg-error/40" />
@@ -295,7 +304,27 @@ export default function ObservabilityDashboard() {
                       </div>
                    </motion.div>
                  ))}
-                 {!metrics.some(m => m.lastFail) && (
+                 
+                 {consecutiveJumps.filter(j => !j.isStable).slice(0, 3).map((jump, idx) => (
+                   <motion.div 
+                    initial={{ x: 20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: idx * 0.1 }}
+                    key={`j-${idx}`} 
+                    className="flex gap-5 group/item"
+                   >
+                      <div className="w-1 bg-primary/20 rounded-full transition-all group-hover/item:bg-primary/40" />
+                      <div className="flex-1 space-y-1">
+                        <p className="text-on-surface font-black text-[10px] tracking-tight uppercase group-hover/item:text-primary transition-colors">VISUAL CONSISTENCY - Style Drift</p>
+                        <p className="text-[9px] font-mono font-bold text-on-surface-variant opacity-40 uppercase tracking-widest gap-2 flex items-center">
+                           <span>SCENE {jump.fromIdx + 1} ➔ {jump.toIdx + 1}</span>
+                           <span>| {jump.hasGradeChange ? 'Grade Shift' : 'Lighting Jump'}</span>
+                        </p>
+                      </div>
+                   </motion.div>
+                 ))}
+
+                 {!metrics.some(m => m.lastFail) && !consecutiveJumps.some(j => !j.isStable) && (
                    <div className="py-8 text-center flex flex-col items-center gap-3">
                       <ShieldCheck className="w-8 h-8 text-on-surface-variant/10" />
                       <p className="text-[10px] font-black uppercase text-on-surface-variant tracking-widest opacity-30 italic">No stability incidents reported</p>

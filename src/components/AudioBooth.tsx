@@ -164,7 +164,7 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
     setIsPreviewing(true);
     try {
       const provider = getAIProviderInstance();
-      const previewText = project.scenes[0].narrationText;
+      const previewText = project.scenes[0].narrationText || "";
       const narrationUrl = await provider.generateNarration(previewText, activeVoice, volume);
       
       if (narrationUrl) {

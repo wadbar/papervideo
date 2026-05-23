@@ -10,7 +10,7 @@ export const aiRouter = Router();
 // ==========================================
 // TELEMETRY & LOGGING (STRUCTURED)
 // ==========================================
-const sysLog = (level: "INFO" | "WARN" | "ERROR", component: string, message: string, meta: Record<string, any> = {}) => {
+const sysLog = (level: "INFO" | "WARN" | "ERROR", component: string, message: string, meta: Record<string, unknown> = {}) => {
   const timestamp = new Date().toISOString();
   let color = "\x1b[36m";
   if (level === "WARN") color = "\x1b[33m";
@@ -33,10 +33,10 @@ export async function fetchWithBackoff(url: string, options: RequestInit, maxRet
         throw new Error(`HTTP ${response.status}`);
       }
       return response;
-    } catch (e: any) {
+    } catch (e: unknown) {
       attempt++;
-      lastError = e;
-      sysLog("WARN", "NETWORK", `Fetch failed for ${new URL(url).hostname}, attempt ${attempt}/${maxRetries}. Retrying...`, { error: e.message });
+      lastError = e instanceof Error ? e : new Error(String(e));
+      sysLog("WARN", "NETWORK", `Fetch failed for ${new URL(url).hostname}, attempt ${attempt}/${maxRetries}. Retrying...`, { error: lastError.message });
       if (attempt >= maxRetries) break;
       const backoffTime = Math.pow(2, attempt) * 1000;
       await new Promise(resolve => setTimeout(resolve, backoffTime));
@@ -64,7 +64,10 @@ const getGeminiClient = () => {
 aiRouter.post('/generate', async (req, res) => {
   try {
     const { prompt, systemInstruction, responseType, temperature } = req.body;
-    if (!prompt) return res.status(400).json({ error: 'Prompt não fornecido.' });
+    if (!prompt) {
+      res.status(400).json({ error: 'Prompt não fornecido.' });
+      return;
+    }
 
     const result = await aiMotor.generate({
       prompt,
@@ -74,12 +77,13 @@ aiRouter.post('/generate', async (req, res) => {
     });
 
     res.json(result);
-  } catch (error: any) {
-    sysLog("ERROR", "ROUTER", "Generate endpoint failed", { message: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    sysLog("ERROR", "ROUTER", "Generate endpoint failed", { message: err.message });
     res.status(500).json({ 
       success: false, 
       error: 'Falha crítica no pipeline de IA.', 
-      details: error.message 
+      details: err.message 
     });
   }
 });
@@ -90,7 +94,10 @@ aiRouter.post('/generate', async (req, res) => {
 aiRouter.post('/script', async (req, res) => {
   try {
     const { idea, targetAudience, tone, length, keywords, pacing } = req.body;
-    if (!idea) return res.status(400).json({ error: 'Ideia não fornecida.' });
+    if (!idea) {
+      res.status(400).json({ error: 'Ideia não fornecida.' });
+      return;
+    }
 
     const config = promptService.getYouTubeScriptPrompt({ idea, targetAudience, tone, length, keywords, pacing });
 
@@ -101,9 +108,10 @@ aiRouter.post('/script', async (req, res) => {
     });
     
     res.json({ ...result.content, _meta: { provider: result.provider, model: result.model, metrics: result.metrics } });
-  } catch (error: any) {
-    sysLog("ERROR", "ROUTER", "Script endpoint failed", { message: error.message });
-    res.status(500).json({ error: 'Erro ao gerar script.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    sysLog("ERROR", "ROUTER", "Script endpoint failed", { message: err.message });
+    res.status(500).json({ error: 'Erro ao gerar script.', details: err.message });
   }
 });
 
@@ -113,7 +121,10 @@ aiRouter.post('/script', async (req, res) => {
 aiRouter.post('/image', async (req, res) => {
   try {
     const { prompt } = req.body;
-    if (!prompt) return res.status(400).json({ error: 'Prompt de imagem não fornecido.' });
+    if (!prompt) {
+      res.status(400).json({ error: 'Prompt de imagem não fornecido.' });
+      return;
+    }
 
     const result = await aiMotor.execute({
       prompt,
@@ -121,9 +132,10 @@ aiRouter.post('/image', async (req, res) => {
     });
     
     res.json({ imageUrl: result.content, _meta: { provider: result.provider, model: result.model } });
-  } catch (error: any) {
-    sysLog("ERROR", "ROUTER", "Image endpoint failed", { message: error.message });
-    res.status(500).json({ error: 'Falha ao gerar imagem.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    sysLog("ERROR", "ROUTER", "Image endpoint failed", { message: err.message });
+    res.status(500).json({ error: 'Falha ao gerar imagem.', details: err.message });
   }
 });
 
@@ -133,7 +145,10 @@ aiRouter.post('/image', async (req, res) => {
 aiRouter.post('/narration', async (req, res) => {
   try {
     const { text, voice = "Zephyr" } = req.body;
-    if (!text) return res.status(400).json({ error: 'Nenhum texto para narrar.' });
+    if (!text) {
+      res.status(400).json({ error: 'Nenhum texto para narrar.' });
+      return;
+    }
     
     // ElevenLabs implementation logic
     const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -166,16 +181,20 @@ aiRouter.post('/narration', async (req, res) => {
     const buffer = Buffer.from(arrayBuffer);
     const audioUrl = `data:audio/mp3;base64,${buffer.toString('base64')}`;
     res.json({ audioUrl });
-  } catch (error: any) {
-    sysLog("ERROR", "ROUTER", "Narration endpoint failed", { message: error.message });
-    res.status(500).json({ error: 'Erro ao gerar Voiceover', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    sysLog("ERROR", "ROUTER", "Narration endpoint failed", { message: err.message });
+    res.status(500).json({ error: 'Erro ao gerar Voiceover', details: err.message });
   }
 });
 
 aiRouter.post('/music', async (req, res) => {
   try {
     const { prompt } = req.body;
-    if (!prompt) return res.status(400).json({ error: 'Prompt não fornecido.' });
+    if (!prompt) {
+       res.status(400).json({ error: 'Prompt não fornecido.' });
+       return;
+    }
     
     const HUGGING_FACE_TOKEN = process.env.HUGGING_FACE_TOKEN;
     if (!HUGGING_FACE_TOKEN) {
@@ -199,9 +218,10 @@ aiRouter.post('/music', async (req, res) => {
     const buffer = Buffer.from(arrayBuffer);
     const musicUrl = `data:audio/mp3;base64,${buffer.toString('base64')}`;
     res.json({ musicUrl });
-  } catch (error: any) {
-    sysLog("ERROR", "ROUTER", "Music endpoint failed", { message: error.message });
-    res.status(500).json({ error: 'Erro ao gerar trilha sonora.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    sysLog("ERROR", "ROUTER", "Music endpoint failed", { message: err.message });
+    res.status(500).json({ error: 'Erro ao gerar trilha sonora.', details: err.message });
   }
 });
 
@@ -219,9 +239,10 @@ aiRouter.post('/video', async (req, res) => {
     );
 
     res.json({ videoUrl, _meta: { provider: "ai-motor" } });
-  } catch (error: any) {
-    sysLog("ERROR", "ROUTER", "Video endpoint failed", { message: error.message });
-    res.status(500).json({ error: 'Erro ao gerar vídeo', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    sysLog("ERROR", "ROUTER", "Video endpoint failed", { message: err.message });
+    res.status(500).json({ error: 'Erro ao gerar vídeo', details: err.message });
   }
 });
 
@@ -230,9 +251,10 @@ aiRouter.post('/clone', async (req, res) => {
     const { voiceName, audioSampleBase64 } = req.body;
     const result = await aiMotor.cloneVoice(voiceName, audioSampleBase64);
     res.json({ voiceId: result.id, name: result.name, provider: result.provider });
-  } catch (error: any) {
-    sysLog("ERROR", "ROUTER", "Clone Voice endpoint failed", { message: error.message });
-    res.status(500).json({ error: 'Erro ao clonar voz', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    sysLog("ERROR", "ROUTER", "Clone Voice endpoint failed", { message: err.message });
+    res.status(500).json({ error: 'Erro ao clonar voz', details: err.message });
   }
 });
 
@@ -243,8 +265,9 @@ aiRouter.get('/metrics', (req, res) => {
   try {
     const metrics = aiMotor.getMetrics();
     res.json(metrics);
-  } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao extrair métricas do pipeline.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    res.status(500).json({ error: 'Erro ao extrair métricas do pipeline.', details: err.message });
   }
 });
 
@@ -256,9 +279,10 @@ aiRouter.post('/seo', async (req, res) => {
     const projectData = req.body;
     const result = await aiMotor.optimizeSEO(projectData);
     res.json(result.content);
-  } catch (error: any) {
-    sysLog("ERROR", "ROUTER", "SEO optimization failed", { message: error.message });
-    res.status(500).json({ error: 'Erro ao otimizar SEO.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    sysLog("ERROR", "ROUTER", "SEO optimization failed", { message: err.message });
+    res.status(500).json({ error: 'Erro ao otimizar SEO.', details: err.message });
   }
 });
 
@@ -267,94 +291,102 @@ aiRouter.post('/suggest-thumbnail', async (req, res) => {
     const projectData = req.body;
     const result = await aiMotor.suggestThumbnail(projectData);
     res.json(result.content);
-  } catch (error: any) {
-    sysLog("ERROR", "ROUTER", "Thumbnail suggestion failed", { message: error.message });
-    res.status(500).json({ error: 'Erro ao sugerir thumbnail.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    sysLog("ERROR", "ROUTER", "Thumbnail suggestion failed", { message: err.message });
+    res.status(500).json({ error: 'Erro ao sugerir thumbnail.', details: err.message });
   }
 });
 
 aiRouter.post('/generate-visual-variations', async (req, res) => {
   try {
     const { prompt, narration, projectIdea } = req.body;
-    const result = await (aiMotor as any).generateVisualVariations(prompt, narration, projectIdea);
+    const result = await aiMotor.generateVisualVariations(prompt, narration, projectIdea);
     res.json(result);
-  } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao gerar variações.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    res.status(500).json({ error: 'Erro ao gerar variações.', details: err.message });
   }
 });
 
 aiRouter.post('/suggest-transition', async (req, res) => {
   try {
     const { currentSceneDesc, nextSceneDesc } = req.body;
-    const result = await (aiMotor as any).suggestTransition(currentSceneDesc, nextSceneDesc);
+    const result = await aiMotor.suggestTransition(currentSceneDesc, nextSceneDesc);
     res.json(result);
-  } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao sugerir transição.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    res.status(500).json({ error: 'Erro ao sugerir transição.', details: err.message });
   }
 });
 
 aiRouter.post('/analyze-scene-metadata', async (req, res) => {
   try {
     const { description, narration } = req.body;
-    const result = await (aiMotor as any).analyzeSceneMetadata(description, narration);
+    const result = await aiMotor.analyzeSceneMetadata(description, narration);
     res.json(result);
-  } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao analisar metadados da cena.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    res.status(500).json({ error: 'Erro ao analisar metadados da cena.', details: err.message });
   }
 });
 
 aiRouter.post('/expand', async (req, res) => {
   try {
     const { prompt, narrationText, projectIdea, style } = req.body;
-    const result = await (aiMotor as any).expandVisualDescription(prompt, narrationText, projectIdea, style);
+    const result = await aiMotor.expandVisualDescription(prompt, narrationText, projectIdea, style);
     res.json({ expandedPrompt: result });
-  } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao expandir prompt.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    res.status(500).json({ error: 'Erro ao expandir prompt.', details: err.message });
   }
 });
 
 aiRouter.post('/refine', async (req, res) => {
   try {
     const { prompt, style } = req.body;
-    const result = await (aiMotor as any).refinePrompt(prompt, style);
+    const result = await aiMotor.refinePrompt(prompt, style);
     res.json({ refinedPrompt: result });
-  } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao refinar prompt.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    res.status(500).json({ error: 'Erro ao refinar prompt.', details: err.message });
   }
 });
 
 aiRouter.post('/analyze-consistency', async (req, res) => {
   try {
     const { project } = req.body;
-    const result = await (aiMotor as any).analyzeVisualConsistency(project);
+    const result = await aiMotor.analyzeVisualConsistency(project);
     res.json({ directive: result });
-  } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao analisar consistência visual.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    res.status(500).json({ error: 'Erro ao analisar consistência visual.', details: err.message });
   }
 });
 
 aiRouter.post('/refine-script', async (req, res) => {
   try {
     const { script, instructions } = req.body;
-    const result = await (aiMotor as any).refineScript(script, instructions);
+    const result = await aiMotor.refineScript(script, instructions);
     res.json({ refinedScript: result });
-  } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao refinar roteiro.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    res.status(500).json({ error: 'Erro ao refinar roteiro.', details: err.message });
   }
 });
 
 aiRouter.post('/image-variations', async (req, res) => {
   try {
     const { prompt } = req.body;
-    // For prototype, we generate 3 slightly different variations of the prompt and call image gen
     const results = await Promise.all([
       aiMotor.execute({ prompt: `${prompt}, variance A`, mode: 'image' }),
       aiMotor.execute({ prompt: `${prompt}, variance B`, mode: 'image' }),
       aiMotor.execute({ prompt: `${prompt}, variance C`, mode: 'image' })
     ]);
     res.json({ imageUrls: results.map(r => r.content) });
-  } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao gerar variações de imagem.', details: error.message });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    res.status(500).json({ error: 'Erro ao gerar variações de imagem.', details: err.message });
   }
 });
 

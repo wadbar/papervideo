@@ -808,50 +808,50 @@ export default function AssetWorkspace() {
                               label="Luminance" 
                               value={activeScene.postProcessing?.brightness ?? 100} 
                               min={50} max={150} 
-                              onChange={(v) => updatePostProcessing({ brightness: v })} 
+                              onChange={(v: number) => updatePostProcessing({ brightness: v })} 
                             />
                             <EffectSlider 
                               label="Dynamic Range" 
                               value={activeScene.postProcessing?.contrast ?? 100} 
                               min={50} max={150} 
-                              onChange={(v) => updatePostProcessing({ contrast: v })} 
+                              onChange={(v: number) => updatePostProcessing({ contrast: v })} 
                             />
                             <EffectSlider 
                               label="Chroma" 
                               value={activeScene.postProcessing?.saturation ?? 100} 
                               min={0} max={200} 
-                              onChange={(v) => updatePostProcessing({ saturation: v })} 
+                              onChange={(v: number) => updatePostProcessing({ saturation: v })} 
                             />
                             <EffectSlider 
                               label="Kelvin Shift" 
                               value={activeScene.postProcessing?.temperature ?? 50} 
                               min={0} max={100} 
-                              onChange={(v) => updatePostProcessing({ temperature: v })}
+                              onChange={(v: number) => updatePostProcessing({ temperature: v })}
                               isTemp
                             />
                             <EffectSlider 
                               label="Vignette" 
                               value={activeScene.postProcessing?.vignette ?? 0} 
                               min={0} max={1} step={0.1}
-                              onChange={(v) => updatePostProcessing({ vignette: v })} 
+                              onChange={(v: number) => updatePostProcessing({ vignette: v })} 
                             />
                             <EffectSlider 
                               label="Grain Density" 
                               value={activeScene.postProcessing?.grain ?? 0} 
                               min={0} max={1} step={0.1}
-                              onChange={(v) => updatePostProcessing({ grain: v })} 
+                              onChange={(v: number) => updatePostProcessing({ grain: v })} 
                             />
                             <EffectSlider 
                                 label="Chromatic Aberration" 
                                 value={activeScene.postProcessing?.chromaticAberration ?? 0} 
                                 min={0} max={1} step={0.1}
-                                onChange={(v) => updatePostProcessing({ chromaticAberration: v })} 
+                                onChange={(v: number) => updatePostProcessing({ chromaticAberration: v })} 
                             />
                             <EffectSlider 
                                 label="Bokéh Blur" 
                                 value={activeScene.postProcessing?.blurFx ?? 0} 
                                 min={0} max={10} step={0.5}
-                                onChange={(v) => updatePostProcessing({ blurFx: v })} 
+                                onChange={(v: number) => updatePostProcessing({ blurFx: v })} 
                             />
                         </div>
                     </div>
