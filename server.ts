@@ -145,6 +145,26 @@ async function startServer() {
     serverInstance = app.listen(PORT, "0.0.0.0", () => {
       sysLog("INFO", "SERVER", `API Server running natively on port ${PORT} with industrial shielding.`);
     });
+
+    const shutdown = (signal: NodeJS.Signals) => {
+      sysLog("WARN", "SYSTEM", `Intercepted ${signal}. Initiating deterministic shut down...`);
+      if (serverInstance) {
+        serverInstance.close(() => {
+          sysLog("INFO", "SYSTEM", "HTTP connections successfully drained. Terminating.");
+          process.exit(0);
+        });
+        
+        setTimeout(() => {
+          sysLog("ERROR", "SYSTEM", "Draining timeout exceeded. Forcing thread destruction.");
+          process.exit(1);
+        }, 10000).unref();
+      } else {
+        process.exit(0);
+      }
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
   } catch (error: any) {
     sysLog("ERROR", "BOOT", "Fatal error during startup loop. Halting initialization.", { err: error.message });
     process.exit(1);

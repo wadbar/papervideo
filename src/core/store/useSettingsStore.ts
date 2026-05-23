@@ -8,7 +8,7 @@ import { BackendAIProvider } from '../../infrastructure/ai/BackendAIProvider';
 interface SystemSettings {
   defaultResolution: '720p' | '1080p' | '4k';
   framerate: 24 | 30 | 60;
-  theme: 'dark' | 'midnight' | 'oled';
+  theme: 'light' | 'dark' | 'midnight' | 'oled';
   performanceMode: boolean;
   autoSync: boolean;
 }

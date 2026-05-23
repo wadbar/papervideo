@@ -28,6 +28,7 @@
   --color-on-background: var(--md-sys-color-on-background);
   --color-surface: var(--md-sys-color-surface);
   --color-on-surface: var(--md-sys-color-on-surface);
+  --color-surface-container: var(--md-sys-color-surface-container);
   --color-surface-variant: var(--md-sys-color-surface-variant);
   --color-on-surface-variant: var(--md-sys-color-on-surface-variant);
   --color-outline: var(--md-sys-color-outline);
@@ -59,6 +60,7 @@
   --md-sys-color-on-surface: #1a1c1e;
   --md-sys-color-surface-variant: #dfe2eb;
   --md-sys-color-on-surface-variant: #43474e;
+  --md-sys-color-surface-container: #f3f3fa;
   --md-sys-color-outline-variant: #c3c7cf;
 
   --md-sys-elevation-1: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
@@ -66,7 +68,7 @@
   --md-sys-elevation-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.3);
 }
 
-.dark {
+[data-theme="dark"] {
   /* Material 3 Dark Tokens */
   --md-sys-color-primary: #9ecaff;
   --md-sys-color-on-primary: #003258;
@@ -91,7 +93,12 @@
   --md-sys-color-on-surface: #e2e2e6;
   --md-sys-color-surface-variant: #43474e;
   --md-sys-color-on-surface-variant: #c3c7cf;
+  --md-sys-color-surface-container: #1e1f23;
   --md-sys-color-outline-variant: #43474e;
+}
+
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 body {
@@ -100,7 +107,7 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   margin: 0;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, fill 0.3s ease, stroke 0.3s ease;
 }
 
 @layer utilities {

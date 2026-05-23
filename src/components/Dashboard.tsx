@@ -5,12 +5,10 @@ import {
   Video, 
   Clock, 
   ChevronRight,
-  Activity,
   Globe,
   Zap,
   Cpu,
   Layout,
-  Play,
   ArrowUpRight,
   Workflow
 } from 'lucide-react';
@@ -36,94 +34,96 @@ export default function Dashboard() {
   return (
     <div 
       id="dashboard-root"
-      className="flex-1 p-8 md:p-16 overflow-y-auto custom-scrollbar bg-surface selection:bg-primary selection:text-on-primary"
+      className="flex-1 p-6 md:p-8 lg:p-12 overflow-y-auto custom-scrollbar bg-background selection:bg-primary selection:text-on-primary transition-colors duration-300"
     >
-      <div className="max-w-[1400px] mx-auto space-y-20">
-        <header className="relative">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-1.5 h-6 bg-primary rounded-full shadow-[0_0_20px_rgba(var(--color-primary),0.5)]" />
-            <span className="text-[10px] font-black text-primary uppercase tracking-[0.5em] opacity-60">System_Status: Operational</span>
-          </div>
-          
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
-            <div className="space-y-6">
-              <h1 className="text-6xl md:text-8xl font-black tracking-tight text-on-surface leading-[0.85] uppercase">
-                Neural<br />
-                <span className="text-primary italic">Command</span>
-              </h1>
-              <p className="text-on-surface-variant text-xl font-medium max-w-2xl leading-relaxed opacity-60 tracking-tight">
-                High-performance visual pipeline management. Architect autonomous synergy through the PaperCreeper V9 orchestration layer.
-              </p>
+      <div className="max-w-7xl mx-auto grid grid-cols-1 gap-12">
+        
+        {/* Header Section */}
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 m3-elevation-1 bg-surface-container p-8 lg:p-10 rounded-3xl border border-outline-variant/30">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(var(--color-primary),0.5)]" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest opacity-80">System Operational</span>
             </div>
             
-            <button 
-              onClick={handleCreateProject}
-              className="group relative flex items-center gap-6 bg-primary text-on-primary px-12 py-8 rounded-[2.5rem] shadow-2xl shadow-primary/30 hover:scale-105 active:scale-95 transition-all overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--color-on-primary),transparent)] opacity-20" />
-              <div className="flex flex-col items-start relative z-10">
-                 <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Bootstrap</span>
-                 <span className="text-sm font-black uppercase tracking-widest text-on-primary">Initialize Space</span>
-              </div>
-              <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform relative z-10 text-on-primary" />
-            </button>
+            <h1 className="text-5xl md:text-7xl font-black tracking-tight text-on-surface leading-[0.9] uppercase">
+              Neural<br />
+              <span className="text-primary italic">Command</span>
+            </h1>
+            <p className="text-on-surface-variant text-lg font-medium max-w-xl leading-relaxed opacity-80 tracking-tight">
+              High-performance visual pipeline management. Architect autonomous synergy through the orchestration layer.
+            </p>
           </div>
+          
+          <button 
+            onClick={handleCreateProject}
+            className="group flex-shrink-0 flex items-center gap-6 bg-primary text-on-primary px-8 py-6 md:py-8 rounded-3xl m3-elevation-2 hover:m3-elevation-3 hover:scale-[1.02] active:scale-[0.98] transition-all overflow-hidden relative"
+          >
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--color-on-primary),transparent)] opacity-10" />
+            <div className="flex flex-col items-start relative z-10">
+               <span className="text-xs font-bold uppercase tracking-widest opacity-80">Bootstrap</span>
+               <span className="text-base font-black uppercase tracking-wider text-on-primary">Initialize Space</span>
+            </div>
+            <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform relative z-10 text-on-primary" />
+          </button>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
+        {/* Stats Grid Section */}
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
            <DashboardStat 
              title="Active Nodes" 
              value="14 / 20" 
              percent={70} 
-             icon={<Cpu className="w-8 h-8" />}
+             icon={<Cpu className="w-7 h-7" />}
              color="primary"
            />
            <DashboardStat 
              title="Neural Sync" 
              value="99.9%" 
              percent={99.9} 
-             icon={<Globe className="w-8 h-8" />}
+             icon={<Globe className="w-7 h-7" />}
              color="secondary"
            />
            <DashboardStat 
              title="Thread Load" 
              value="28%" 
              percent={28} 
-             icon={<Zap className="w-8 h-8" />}
+             icon={<Zap className="w-7 h-7" />}
              color="tertiary"
            />
            <DashboardStat 
              title="Logic Clusters" 
              value={projects.length.toString()} 
              percent={Math.min(projects.length * 10, 100)} 
-             icon={<Workflow className="w-8 h-8" />}
+             icon={<Workflow className="w-7 h-7" />}
              color="primary"
            />
-        </div>
+        </section>
 
-        <section id="recent-projects" className="space-y-12">
-          <div className="flex items-center gap-6">
-             <div className="w-12 h-12 rounded-2xl bg-surface-variant/30 flex items-center justify-center text-primary">
+        {/* Projects History Section */}
+        <section id="recent-projects" className="space-y-8">
+          <div className="flex items-center gap-4 bg-surface-container p-4 rounded-3xl border border-outline-variant/30">
+             <div className="w-12 h-12 rounded-2xl bg-secondary-container text-on-secondary-container flex items-center justify-center">
                <Clock className="w-6 h-6" />
              </div>
              <div className="flex flex-col">
-               <h2 className="text-3xl font-black tracking-tighter text-on-surface uppercase">Neural History</h2>
-               <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.4em] opacity-40 italic">Temporal Archive // V9.2</p>
+               <h2 className="text-2xl font-bold tracking-tight text-on-surface uppercase">Neural History</h2>
+               <p className="text-xs font-medium text-on-surface-variant uppercase tracking-widest opacity-80">Temporal Archive</p>
              </div>
-             <div className="h-px flex-1 bg-outline-variant/20 mx-4" />
+             <div className="h-px flex-1 bg-outline-variant mx-4 opacity-50" />
           </div>
 
           <div className="grid grid-cols-1 gap-6">
             {projects.length === 0 ? (
-              <div className="bg-surface-variant/5 border-4 border-dashed border-outline-variant/30 p-24 rounded-[4rem] flex flex-col items-center justify-center text-center group">
-                <div className="p-10 bg-surface-variant/30 rounded-[3rem] text-outline-variant mb-10 group-hover:scale-110 transition-transform">
-                  <FolderOpen className="w-20 h-20" />
+              <div className="bg-surface-container border-2 border-dashed border-outline-variant p-16 md:p-24 rounded-3xl flex flex-col items-center justify-center text-center group transition-colors">
+                <div className="p-8 bg-surface-variant text-on-surface-variant rounded-3xl mb-8 group-hover:scale-110 transition-transform m3-elevation-1">
+                  <FolderOpen className="w-16 h-16" />
                 </div>
-                <h3 className="text-2xl font-black text-on-surface uppercase tracking-[0.2em] mb-4">Void Cluster Detected</h3>
-                <p className="text-on-surface-variant font-bold text-sm max-w-sm mb-12 opacity-40 leading-relaxed uppercase tracking-tight">No active visual threads found in the current sector. Initialize a bootstrap sequence to deploy a new project.</p>
+                <h3 className="text-xl font-bold text-on-surface uppercase tracking-wider mb-3">Void Cluster Detected</h3>
+                <p className="text-on-surface-variant text-sm max-w-sm mb-10 opacity-80 leading-relaxed uppercase tracking-wide">No active visual threads found in the current sector. Initialize a bootstrap sequence to deploy a new project.</p>
                 <button 
                    onClick={handleCreateProject}
-                   className="flex items-center gap-6 bg-surface-variant px-12 py-6 rounded-[2.5rem] border border-outline-variant hover:bg-surface-variant-active shadow-xl transition-all font-black uppercase text-[11px] tracking-[0.3em] active:scale-95"
+                   className="flex items-center gap-4 bg-secondary-container text-on-secondary-container px-8 py-4 rounded-3xl m3-elevation-1 hover:m3-elevation-2 transition-all font-bold uppercase text-xs tracking-widest active:scale-95"
                 >
                   Neural Link Start
                   <ArrowUpRight className="w-5 h-5" />
@@ -133,33 +133,35 @@ export default function Dashboard() {
                 projects.sort((a, b) => (b.lastModified || b.createdAt) - (a.lastModified || a.createdAt)).map((project) => (
                   <motion.div 
                     key={project.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
                     onClick={() => handleSelectProject(project.id)}
-                    className={`group cursor-pointer transition-all bg-surface-variant/10 rounded-[3rem] border-2 p-10 hover:p-12 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-8 ${
-                      project.id === activeProject?.id ? 'border-primary shadow-2xl shadow-primary/10' : 'border-outline-variant/20 hover:border-primary/40 hover:bg-primary/5'
+                    className={`group cursor-pointer transition-all bg-surface-container rounded-3xl border-2 p-6 md:p-8 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 m3-elevation-1 hover:m3-elevation-2 ${
+                      project.id === activeProject?.id ? 'border-primary' : 'border-transparent hover:border-outline-variant/30'
                     }`}
                   >
-                    <div className="flex items-center gap-8 relative z-10">
-                      <div className="w-20 h-20 rounded-[2rem] bg-surface flex items-center justify-center border-4 border-outline-variant/30 group-hover:border-primary transition-all group-hover:scale-110 shadow-inner group-hover:bg-primary/10 group-hover:text-primary">
-                        <Video className="w-10 h-10" />
+                    <div className="flex items-center gap-6 relative z-10">
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all group-hover:scale-105 shadow-sm ${
+                        project.id === activeProject?.id ? 'bg-primary text-on-primary' : 'bg-surface-variant text-on-surface-variant group-hover:bg-primary-container group-hover:text-on-primary-container'
+                      }`}>
+                        <Video className="w-8 h-8" />
                       </div>
-                      <div className="flex flex-col group-hover:translate-x-2 transition-transform">
-                        <h3 className="font-black text-3xl text-on-surface tracking-tighter uppercase leading-none mb-3 group-hover:text-primary transition-colors">{project.title}</h3>
-                        <div className="flex items-center gap-6">
+                      <div className="flex flex-col group-hover:translate-x-1 transition-transform">
+                        <h3 className="font-bold text-2xl text-on-surface tracking-tight uppercase mb-2 group-hover:text-primary transition-colors">{project.title}</h3>
+                        <div className="flex items-center gap-4">
                            <div className="flex items-center gap-2">
-                             <Layout className="w-3.5 h-3.5 opacity-40" />
-                             <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60">{project.scenes.length} Scenes</span>
+                             <Layout className="w-4 h-4 opacity-60 text-on-surface-variant" />
+                             <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant opacity-80">{project.scenes.length} Scenes</span>
                            </div>
-                           <div className="h-4 w-px bg-outline-variant/30" />
-                           <div className="flex items-center gap-3">
-                              <div className={`w-2 h-2 rounded-full animate-pulse shadow-[0_0_10px_currentColor] ${
-                                project.status === 'completed' ? 'text-[#4ade80]' :
-                                project.status === 'processing' ? 'text-primary' :
-                                'text-on-surface-variant'
+                           <div className="h-4 w-px bg-outline-variant opacity-50" />
+                           <div className="flex items-center gap-2">
+                              <div className={`w-2.5 h-2.5 rounded-full shadow-sm ${
+                                project.status === 'completed' ? 'bg-[#4ade80]' :
+                                project.status === 'processing' ? 'bg-primary animate-pulse' :
+                                'bg-outline-variant'
                               }`} />
-                              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Status: {project.status}</span>
+                              <span className="text-xs font-bold uppercase tracking-widest opacity-80 text-on-surface-variant">Status: {project.status}</span>
                            </div>
                         </div>
                       </div>
@@ -167,15 +169,15 @@ export default function Dashboard() {
                     
                     <div className="flex items-center gap-6 relative z-10">
                        <div className="hidden lg:flex flex-col items-end">
-                          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-on-surface-variant opacity-30">Cluster_Core</p>
-                          <p className="text-xs font-black text-on-surface opacity-40 uppercase tracking-tighter">PROTO_{project.id.slice(0, 8)}</p>
+                          <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant opacity-60">Cluster_Core</p>
+                          <p className="text-sm font-mono text-on-surface opacity-80 mt-1 uppercase tracking-tighter">PROTO_{project.id.slice(0, 8)}</p>
                        </div>
-                       <div className="w-16 h-16 rounded-full flex items-center justify-center bg-surface-variant/30 group-hover:bg-primary group-hover:text-on-primary transition-all group-hover:scale-110 active:scale-90">
-                         <ChevronRight className="w-8 h-8 transition-transform group-hover:translate-x-1" />
+                       <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-surface-variant text-on-surface-variant group-hover:bg-primary-container group-hover:text-on-primary-container transition-all group-hover:scale-105 active:scale-95">
+                         <ChevronRight className="w-6 h-6 transition-transform group-hover:translate-x-1" />
                        </div>
                     </div>
 
-                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity">
+                    <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-5 transition-opacity text-on-surface">
                        <Workflow className="w-32 h-32 -rotate-12" />
                     </div>
                   </motion.div>
@@ -193,49 +195,50 @@ function DashboardStat({ title, value, percent, icon, color }: {
 }) {
   const themes = {
     primary: {
-      bg: 'bg-primary/5',
+      bg: 'bg-primary-container',
       icon: 'bg-primary text-on-primary',
       bar: 'bg-primary',
-      border: 'border-primary/10'
+      text: 'text-on-primary-container'
     },
     secondary: {
-      bg: 'bg-secondary/5',
+      bg: 'bg-secondary-container',
       icon: 'bg-secondary text-on-secondary',
       bar: 'bg-secondary',
-      border: 'border-secondary/10'
+      text: 'text-on-secondary-container'
     },
     tertiary: {
-      bg: 'bg-tertiary/5',
+      bg: 'bg-tertiary-container',
       icon: 'bg-tertiary text-on-tertiary',
       bar: 'bg-tertiary',
-      border: 'border-tertiary/10'
+      text: 'text-on-tertiary-container'
     }
   };
 
   const theme = themes[color];
 
   return (
-    <div className={`bg-surface-variant/10 p-10 rounded-[3rem] border-2 ${theme.border} relative overflow-hidden group hover:bg-surface transition-all hover:scale-[1.02] shadow-sm hover:shadow-2xl`}>
-      <div className="flex items-center justify-between mb-8">
-        <div className={`w-20 h-20 ${theme.icon} rounded-[2rem] flex items-center justify-center shadow-2xl transition-transform group-hover:rotate-12`}>
+    <div className={`bg-surface-container p-6 md:p-8 rounded-3xl border border-outline-variant/30 relative overflow-hidden group hover:m3-elevation-2 m3-elevation-1 transition-all`}>
+      <div className="flex items-center justify-between mb-6">
+        <div className={`w-14 h-14 ${theme.icon} rounded-2xl flex items-center justify-center shadow-sm transition-transform group-hover:scale-110`}>
           {icon}
         </div>
         <div className="text-right">
-          <p className="text-[9px] font-black text-on-surface-variant uppercase tracking-[0.3em] mb-2 opacity-40">{title}</p>
-          <p className="text-3xl font-black text-on-surface uppercase tracking-tight">{value}</p>
+          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1 opacity-80">{title}</p>
+          <p className="text-2xl font-black text-on-surface uppercase tracking-tight">{value}</p>
         </div>
       </div>
-      <div className="w-full h-3 bg-surface-variant/30 rounded-full overflow-hidden shadow-inner p-0.5">
+      <div className="w-full h-2 bg-surface-variant rounded-full overflow-hidden shadow-inner">
          <motion.div 
            initial={{ width: 0 }}
            animate={{ width: `${percent}%` }} 
-           className={`h-full ${theme.bar} rounded-full shadow-lg relative`} 
-           transition={{ duration: 1.5, ease: 'circOut' }}
+           className={`h-full ${theme.bar} rounded-full relative`} 
+           transition={{ duration: 1.0, ease: 'easeOut' }}
          >
-            <div className="absolute inset-0 bg-white/30 skew-x-12 animate-pulse" />
+            <div className="absolute inset-0 bg-white/20 skew-x-12 animate-pulse" />
          </motion.div>
       </div>
     </div>
   );
 }
+
 

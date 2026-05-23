@@ -11,7 +11,8 @@ import {
   ArrowRight,
   ArrowLeft,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { VideoProject } from '../core/domain/types';
@@ -25,6 +26,18 @@ interface VideoStudioProps {
   project: VideoProject;
   onUpdate: (project: VideoProject) => void;
   onBack: () => void;
+}
+
+export function useVideoValidation(project: VideoProject) {
+  const scenesExceedingLimit = project.scenes.filter((s) => (s.videoDuration || 4) > 60).map(s => s.id);
+  const totalDuration = project.scenes.reduce((acc, s) => acc + (s.videoDuration || 4), 0);
+  const isExportPrevented = totalDuration === 0 || scenesExceedingLimit.length > 0;
+  
+  return {
+    scenesExceedingLimit,
+    totalDuration,
+    isExportPrevented
+  };
 }
 
 export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioProps) {
@@ -47,12 +60,18 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
 
   const currentStepIndex = steps.findIndex(s => s.id === activeStep);
 
+  const { scenesExceedingLimit, isExportPrevented } = useVideoValidation(project);
+
   useKeyBindings({
     'Ctrl+s': () => {
       console.log('Saved');
     },
     'ArrowRight': () => {
-       if (currentStepIndex < steps.length - 1) setActiveStep(steps[currentStepIndex + 1].id);
+       if (currentStepIndex < steps.length - 1) {
+          const nextStepId = steps[currentStepIndex + 1].id;
+          if (nextStepId === 'export' && isExportPrevented) return;
+          setActiveStep(nextStepId);
+       }
     },
     'ArrowLeft': () => {
        if (currentStepIndex > 0) setActiveStep(steps[currentStepIndex - 1].id);
@@ -114,23 +133,26 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
                           const duration = s.videoDuration || 4;
                           const percentage = (duration / totalDuration) * 100;
                           const isSelected = selectedSceneId === s.id;
+                          const isExceeding = scenesExceedingLimit.includes(s.id);
                           return (
                               <div 
                                   key={s.id} 
                                   style={{ width: `${percentage}%` }}
-                                  className={`h-full border-r border-background/50 relative group/timeline cursor-pointer transition-all ${activeStep === 'visuals' && isSelected ? 'bg-primary shadow-[0_0_12px_rgba(var(--primary),0.8)]' : activeStep === 'visuals' ? 'bg-primary/40 hover:bg-primary/60' : 'bg-primary/40'}`}
+                                  className={`h-full border-r border-background/50 relative group/timeline transition-all ${isExceeding ? 'bg-error/30 !border-error cursor-not-allowed' : 'cursor-pointer'} ${activeStep === 'visuals' && isSelected && !isExceeding ? 'bg-primary shadow-[0_0_12px_rgba(var(--primary),0.8)]' : activeStep === 'visuals' && !isExceeding ? 'bg-primary/40 hover:bg-primary/60' : !isExceeding ? 'bg-primary/40' : ''}`}
                                   onClick={() => {
-                                      if (activeStep === 'visuals') setSelectedSceneId(s.id);
+                                      if (activeStep === 'visuals' && !isExceeding) setSelectedSceneId(s.id);
                                   }}
                               >
                                   <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover/timeline:opacity-100 transition-opacity pointer-events-none flex flex-col items-center">
-                                      <div className="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-xl p-1 w-32">
+                                      <div className={`bg-surface border rounded-xl overflow-hidden shadow-xl p-1 w-32 ${isExceeding ? 'border-error' : 'border-outline-variant'}`}>
                                           {s.imageUrl ? (
-                                              <img src={s.imageUrl} className="w-full aspect-video object-cover rounded-lg" alt="Thumbnail" referrerPolicy="no-referrer" />
+                                              <img src={s.imageUrl} className={`w-full aspect-video object-cover rounded-lg ${isExceeding ? 'opacity-50 blur-sm' : ''}`} alt="Thumbnail" referrerPolicy="no-referrer" />
                                           ) : (
                                               <div className="w-full aspect-video bg-surface-variant rounded-lg flex items-center justify-center text-[8px] text-on-surface-variant">No Image</div>
                                           )}
-                                          <div className="text-[10px] text-center font-bold font-mono mt-1 pt-1 border-t border-outline-variant/30 text-on-surface">{duration}s</div>
+                                          <div className={`text-[10px] text-center font-bold font-mono mt-1 pt-1 border-t text-on-surface ${isExceeding ? 'border-error/30 text-error' : 'border-outline-variant/30'}`}>
+                                              {duration}s {isExceeding && '(Limit: 60s)'}
+                                          </div>
                                       </div>
                                   </div>
                               </div>
@@ -173,12 +195,18 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
           const Icon = step.icon;
           const isActive = step.id === activeStep;
           const isCompleted = idx < currentStepIndex;
+          const isExportStep = step.id === 'export';
+          const isDisabled = isExportStep && isExportPrevented;
 
           return (
             <React.Fragment key={step.id}>
               <button
-                onClick={() => setActiveStep(step.id)}
-                className={`relative flex flex-col items-center gap-1.5 px-6 py-2 transition-all min-w-[100px] group`}
+                onClick={() => {
+                  if (!isDisabled) setActiveStep(step.id);
+                }}
+                disabled={isDisabled}
+                className={`relative flex flex-col items-center gap-1.5 px-6 py-2 transition-all min-w-[100px] group ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                title={isDisabled ? "Cannot export: Fix scene duration errors or ensure total duration is positive." : ""}
               >
                 <div className={`w-14 h-8 rounded-full flex items-center justify-center transition-all ${
                   isActive ? 'bg-secondary-container text-on-secondary-container' : 
@@ -206,6 +234,14 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
           );
         })}
       </div>
+
+      {isExportPrevented && scenesExceedingLimit.length > 0 && (
+        <ExportValidatorView 
+          project={project} 
+          scenesExceedingLimit={scenesExceedingLimit} 
+          setActiveStep={setActiveStep} 
+        />
+      )}
 
       {/* Step Content Area */}
       <div className="flex-1 overflow-hidden relative">
@@ -303,5 +339,47 @@ function ShortcutItem({ label, kbd }: { label: string, kbd: string }) {
       <span className="text-on-surface-variant font-medium">{label}</span>
       <kbd className="bg-surface-variant font-mono px-3 py-1 rounded-lg text-xs text-on-surface-variant border border-outline-variant shadow-sm">{kbd}</kbd>
     </div>
+  );
+}
+
+function ExportValidatorView({ project, scenesExceedingLimit, setActiveStep }: { project: VideoProject, scenesExceedingLimit: string[], setActiveStep: (step: 'orchestrator' | 'visuals' | 'audio' | 'export') => void }) {
+  if (scenesExceedingLimit.length === 0) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: -20, height: 0 }}
+        animate={{ opacity: 1, y: 0, height: 'auto' }}
+        exit={{ opacity: 0, y: -20, height: 0 }}
+        className="mx-6 mt-4 mb-2 overflow-hidden"
+      >
+        <div className="bg-error-container text-on-error-container p-4 rounded-2xl flex items-start gap-4 m3-elevation-1">
+          <div className="p-2 bg-error/10 rounded-xl">
+              <AlertTriangle className="w-5 h-5 text-error" />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-bold text-sm mb-1">Export Blocked: Scene Duration Limit Exceeded</h4>
+            <p className="text-xs opacity-90 mb-3">
+              The following scenes exceed the maximum duration of 60 seconds. Please reduce their length in the Visuals Lab before exporting.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {scenesExceedingLimit.map(id => {
+                 const sceneIndex = project.scenes.findIndex(s => s.id === id);
+                 const duration = project.scenes[sceneIndex].videoDuration || 4;
+                 return (
+                   <button 
+                     key={id}
+                     onClick={() => setActiveStep('visuals')}
+                     className="bg-error/20 hover:bg-error/30 transition-colors px-3 py-1.5 rounded-lg text-xs font-bold"
+                   >
+                     Scene {sceneIndex + 1} ({Math.round(duration)}s)
+                   </button>
+                 )
+              })}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
   );
 }
