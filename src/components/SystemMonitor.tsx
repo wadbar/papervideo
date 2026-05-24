@@ -14,8 +14,35 @@ interface LogEntry {
 export default function SystemMonitor() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [memoryStats, setMemoryStats] = useState({ used: 0, limit: 0, critical: false });
   const scrollRef = useRef<HTMLDivElement>(null);
   const clearAllHistory = useProjectStore(state => state.clearAllHistory);
+
+  useEffect(() => {
+    const handleVramPressure = (e: any) => {
+      setMemoryStats(prev => ({ ...prev, critical: true }));
+      setTimeout(() => setMemoryStats(prev => ({ ...prev, critical: false })), 2000);
+    };
+    window.addEventListener('vram-pressure-critical', handleVramPressure);
+
+    const updateMem = () => {
+        const memory = (performance as any).memory;
+        if (memory) {
+            setMemoryStats(prev => ({
+                ...prev,
+                used: memory.usedJSHeapSize,
+                limit: memory.jsHeapSizeLimit || memory.totalJSHeapSize
+            }));
+        }
+    };
+    const interval = setInterval(updateMem, 2000);
+    updateMem();
+
+    return () => {
+        window.removeEventListener('vram-pressure-critical', handleVramPressure);
+        clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     const handleLog = (e: any) => {
@@ -57,9 +84,14 @@ export default function SystemMonitor() {
         <div className="h-4 w-px bg-outline-variant/40" />
         
         <div className="flex items-center gap-6 text-[10px] font-mono font-black tracking-tight text-on-surface-variant">
-           <div className="flex items-center gap-2 group/stat">
-             <Activity className="w-3.5 h-3.5 text-primary opacity-60" />
-             <span>8.4GB</span>
+           <div className={`flex items-center gap-2 group/stat transition-colors ${memoryStats.critical ? 'text-error animate-pulse' : ''}`}>
+             <Layers className={`w-3.5 h-3.5 ${memoryStats.critical ? 'text-error' : 'text-primary opacity-60'}`} />
+             <span>
+                 {memoryStats.limit > 0
+                     ? `${Math.round(memoryStats.used/1024/1024)}MB / ${Math.round(memoryStats.limit/1024/1024)}MB` 
+                     : 'MEM_OK'}
+             </span>
+             {memoryStats.critical && <span className="ml-1 text-[8px] tracking-widest text-error">PURGED</span>}
            </div>
            <div className="flex items-center gap-2 group/stat">
              <Cpu className="w-3.5 h-3.5 text-secondary opacity-60" />
@@ -172,6 +204,17 @@ export default function SystemMonitor() {
                     <div className="w-1.5 h-1.5 bg-tertiary rounded-full shadow-[0_0_8px_var(--color-tertiary)]" />
                     <span className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant opacity-40">PID_4812</span>
                  </div>
+                 <button 
+                  onClick={() => {
+                     const event = new Event('vram-pressure-critical');
+                     window.dispatchEvent(event);
+                     sysLog('All memory buffers cleared.', 'warn');
+                  }}
+                  className="group flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-on-surface-variant hover:text-error transition-all active:scale-95"
+                 >
+                   <Layers className="w-3.5 h-3.5" />
+                   <span>Emergency Cache Purge</span>
+                 </button>
                  <button 
                   onClick={() => {
                     clearAllHistory();

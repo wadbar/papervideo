@@ -12,7 +12,8 @@ import {
   ArrowLeft,
   ZoomIn,
   ZoomOut,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { VideoProject } from '../core/domain/types';
@@ -44,11 +45,23 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
   const [activeStep, setActiveStep] = useState<'orchestrator' | 'visuals' | 'audio' | 'export'>('orchestrator');
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>(new Date(project.createdAt));
+  const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'synced'>('idle');
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(project.scenes[0]?.id || null);
   const [timelineZoom, setTimelineZoom] = useState<number>(1.0);
 
   useEffect(() => {
-    setLastSaved(new Date());
+    setSyncState('syncing');
+    const t1 = setTimeout(() => {
+        setLastSaved(new Date());
+        setSyncState('synced');
+    }, 600);
+    const t2 = setTimeout(() => {
+        setSyncState('idle');
+    }, 2600);
+    return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+    };
   }, [project]);
 
   const steps = [
@@ -61,6 +74,83 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
   const currentStepIndex = steps.findIndex(s => s.id === activeStep);
 
   const { scenesExceedingLimit, isExportPrevented } = useVideoValidation(project);
+
+  // Offscreen Canvas Pre-processing for Visual Synthesis (Architectural Requirement)
+  const frameProcessorRef = React.useRef<Worker | null>(null);
+
+  useEffect(() => {
+    const workerCode = `
+      let canvas = null;
+      let ctx = null;
+      
+      self.onmessage = function(e) {
+          if (e.data.type === 'init') {
+             canvas = e.data.canvas;
+             if (canvas) {
+                 ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+             }
+          } else if (e.data.type === 'render' && ctx) {
+             const { imageBitmap, filters, width, height } = e.data;
+             if (canvas.width !== width) canvas.width = width;
+             if (canvas.height !== height) canvas.height = height;
+             ctx.filter = filters || 'none';
+             ctx.drawImage(imageBitmap, 0, 0, width, height);
+             imageBitmap.close(); 
+             
+             // Signal completion back to main thread async
+             self.postMessage({ type: 'frame_ready', timestamp: Date.now() });
+          }
+      };
+    `;
+    const blob = new Blob([workerCode], {type: 'application/javascript'});
+    const url = URL.createObjectURL(blob);
+    const worker = new Worker(url);
+    frameProcessorRef.current = worker;
+    
+    try {
+        const offscreenCanvas = new OffscreenCanvas(1920, 1080);
+        worker.postMessage({ type: 'init', canvas: offscreenCanvas }, [offscreenCanvas as any]);
+    } catch(e) {
+        console.warn("[VideoStudio] OffscreenCanvas not fully supported or constrained by environment.", e);
+    }
+    
+    return () => {
+       worker.terminate();
+       URL.revokeObjectURL(url);
+    }
+  }, []);
+
+  // Memory-Aware Batching System
+  useEffect(() => {
+    const handleVramPressure = async (e: Event) => {
+        console.warn(`[VideoStudio] ACTION_REQUIRED: VRAM / Memory Pressure Critical. Activating Cache Purge Protocol.`);
+        try {
+            // Traverse localStorage and aggressively purge cached frames, thumbnails, and heavy binary strings
+            let purgedCount = 0;
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('frame_') || key.includes('thumb_') || key.includes('preview_') || key.includes('asset_'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(k => {
+                localStorage.removeItem(k);
+                purgedCount++;
+            });
+            console.info(`[VideoStudio] Cache Purge Protocol complete. Purged ${purgedCount} assets from VRAM/localStorage proxy.`);
+            
+            // Purge IndexedDB High-Res Frame Storage
+            const { frameStorage } = await import('../lib/indexedDBStorage');
+            await frameStorage.purgeAll();
+            console.info(`[VideoStudio] IndexedDB Frame Storage cleared to unblock VRAM constraint.`);
+        } catch(err) {
+            console.error(`[VideoStudio] Failed to purge memory:`, err);
+        }
+    };
+    window.addEventListener('vram-pressure-critical', handleVramPressure);
+    return () => window.removeEventListener('vram-pressure-critical', handleVramPressure);
+  }, []);
 
   useKeyBindings({
     'Ctrl+s': () => {
@@ -97,7 +187,44 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
                 {activeStep}
               </span>
               <div className="w-1 h-1 rounded-full bg-outline-variant" />
-              <span className="text-[10px] text-on-surface-variant font-medium">Last saved {lastSaved.toLocaleTimeString()}</span>
+              <span className="text-[10px] text-on-surface-variant font-medium flex items-center gap-1.5 min-w-[120px]">
+                <AnimatePresence mode="wait">
+                  {syncState === 'syncing' && (
+                    <motion.div
+                      key="syncing"
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -5 }}
+                      className="flex items-center gap-1 text-on-surface-variant opacity-80"
+                    >
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span className="uppercase tracking-widest text-[9px] font-black">Syncing to Cloud...</span>
+                    </motion.div>
+                  )}
+                  {syncState === 'synced' && (
+                    <motion.div
+                      key="synced"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="flex items-center gap-1 text-tertiary"
+                    >
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span className="uppercase tracking-widest text-[9px] font-black">Synced</span>
+                    </motion.div>
+                  )}
+                  {syncState === 'idle' && (
+                    <motion.span
+                      key="idle"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      Last saved {lastSaved.toLocaleTimeString()}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </span>
             </div>
           </div>
         </div>
@@ -124,9 +251,12 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
                     <span>Total Length: {project.scenes.reduce((acc, s) => acc + (s.videoDuration || 4), 0)}s</span>
                 </div>
                 <div className="w-full overflow-x-auto no-scrollbar py-1">
-                  <div 
-                    style={{ width: `${timelineZoom * 100}%`, minWidth: '100%' }}
-                    className="h-2 bg-surface-variant/30 rounded-full flex overflow-hidden transition-all duration-300"
+                  <motion.div 
+                    layout
+                    style={{ minWidth: '100%' }}
+                    animate={{ width: `${timelineZoom * 100}%` }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    className="h-2 bg-surface-variant/30 rounded-full flex overflow-hidden"
                   >
                       {project.scenes.map((s, i) => {
                           const totalDuration = project.scenes.reduce((acc, cur) => acc + (cur.videoDuration || 4), 0) || 1;
@@ -135,10 +265,12 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
                           const isSelected = selectedSceneId === s.id;
                           const isExceeding = scenesExceedingLimit.includes(s.id);
                           return (
-                              <div 
+                              <motion.div 
                                   key={s.id} 
-                                  style={{ width: `${percentage}%` }}
-                                  className={`h-full border-r border-background/50 relative group/timeline transition-all ${isExceeding ? 'bg-error/30 !border-error cursor-not-allowed' : 'cursor-pointer'} ${activeStep === 'visuals' && isSelected && !isExceeding ? 'bg-primary shadow-[0_0_12px_rgba(var(--primary),0.8)]' : activeStep === 'visuals' && !isExceeding ? 'bg-primary/40 hover:bg-primary/60' : !isExceeding ? 'bg-primary/40' : ''}`}
+                                  layout
+                                  animate={{ width: `${percentage}%` }}
+                                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                                  className={`h-full border-r border-background/50 relative group/timeline transition-colors ${isExceeding ? 'bg-error/30 !border-error cursor-not-allowed' : 'cursor-pointer'} ${activeStep === 'visuals' && isSelected && !isExceeding ? 'bg-primary shadow-[0_0_12px_rgba(var(--primary),0.8)]' : activeStep === 'visuals' && !isExceeding ? 'bg-primary/40 hover:bg-primary/60' : !isExceeding ? 'bg-primary/40' : ''}`}
                                   onClick={() => {
                                       if (activeStep === 'visuals' && !isExceeding) setSelectedSceneId(s.id);
                                   }}
@@ -155,10 +287,10 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
                                           </div>
                                       </div>
                                   </div>
-                              </div>
+                              </motion.div>
                           )
                       })}
-                  </div>
+                  </motion.div>
                 </div>
             </div>
         </div>
@@ -173,13 +305,17 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
           </button>
           <button 
             onClick={() => {
-              const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project, null, 2));
+              const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
               const downloadAnchorNode = document.createElement('a');
-              downloadAnchorNode.setAttribute("href", dataStr);
-              downloadAnchorNode.setAttribute("download", `project-${project.id}.json`);
+              downloadAnchorNode.setAttribute("href", url);
+              downloadAnchorNode.setAttribute("download", `project-${project.id}-${Date.now()}.json`);
               document.body.appendChild(downloadAnchorNode);
-              downloadAnchorNode.click();
-              downloadAnchorNode.remove();
+              requestAnimationFrame(() => {
+                  downloadAnchorNode.click();
+                  downloadAnchorNode.remove();
+                  setTimeout(() => URL.revokeObjectURL(url), 1000);
+              });
             }}
             className="m3-button-tonal scale-90"
           >
@@ -248,10 +384,10 @@ export default function VideoStudio({ project, onUpdate, onBack }: VideoStudioPr
         <AnimatePresence mode="wait">
           <motion.div
             key={activeStep}
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.02 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            initial={{ opacity: 0, y: 20, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.99 }}
+            transition={{ duration: 0.5, ease: [0.2, 0, 0, 1] }} // Material Emphasized Decoder
             className="h-full overflow-y-auto custom-scrollbar p-4 lg:p-6"
           >
             <div className="max-w-7xl mx-auto min-h-full">

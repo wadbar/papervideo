@@ -369,6 +369,7 @@ export default function AssetWorkspace() {
     <div className="h-full flex flex-col overflow-hidden bg-surface rounded-[2rem] border border-outline-variant/50 relative shadow-sm transition-colors duration-300">
       <AnimatePresence mode="wait">
         <motion.div 
+          layout
           key={activeScene.id}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import cors from "cors";
+import helmet from "helmet";
+import compression from "compression";
 import { createServer as createViteServer } from "vite";
 import { Server } from "http";
 import { aiRouter } from "./src/server/aiRouter";
@@ -78,8 +80,25 @@ async function startServer() {
     // Trust proxy is required for express-rate-limit behind reverse proxies
     app.set('trust proxy', 1);
 
+    // Extreme Optimization: Security Headers and Payload Compression
+    app.use(helmet({
+      contentSecurityPolicy: false, // Disabled for local dev and vite HMR
+      crossOriginEmbedderPolicy: false,
+    }));
+    app.use(compression({
+      level: 9, // Supreme gzip level
+      threshold: 0,
+      filter: (req, res) => {
+        if (req.headers['x-no-compression']) {
+          return false;
+        }
+        return compression.filter(req, res);
+      }
+    }));
+
     app.use(cors());
-    app.use(express.json({ limit: '50mb' }));
+    app.use(express.json({ limit: '100mb' }));
+    app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
     // Request Logger Middleware (Filtering static assets for cleaner industrial logs)
     app.use((req: Request, res: Response, next: NextFunction) => {

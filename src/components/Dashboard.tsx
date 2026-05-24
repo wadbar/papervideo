@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   Plus, 
   FolderOpen, 
@@ -10,15 +10,19 @@ import {
   Cpu,
   Layout,
   ArrowUpRight,
-  Workflow
+  Workflow,
+  Archive,
+  Download
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useProjectStore } from '../core/store/useProjectStore';
 import { sysLog } from '../lib/sys';
 
 export default function Dashboard() {
-  const { projects, createNewProject, setActiveProjectId, getActiveProject } = useProjectStore();
+  const { projects, createNewProject, setActiveProjectId, getActiveProject, deleteProject } = useProjectStore();
   
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+
   const handleCreateProject = () => {
     sysLog('Initializing new project stream bootstrap sequence...', 'info');
     const id = createNewProject();
@@ -31,16 +35,46 @@ export default function Dashboard() {
     setActiveProjectId(id);
   };
 
+  // 30 days in ms
+  const STALE_THRESHOLD = 30 * 24 * 60 * 60 * 1000;
+  
+  const staleProjects = useMemo(() => {
+    const now = Date.now();
+    return projects.filter(p => now - (p.lastModified || p.createdAt) > STALE_THRESHOLD);
+  }, [projects]);
+
+  const totalScenes = projects.reduce((acc, p) => acc + p.scenes.length, 0);
+  const totalSynthesisTime = projects.reduce((acc, p) => acc + p.scenes.reduce((sAcc, s) => sAcc + (s.videoDuration || 4), 0), 0);
+
+  const archiveStaleProjects = () => {
+    if (staleProjects.length === 0) return;
+    
+    // Create a local backup of stale projects
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(staleProjects));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `neural_archive_stale_${Date.now()}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+
+    // Remove from active store
+    staleProjects.forEach(p => deleteProject(p.id));
+    setShowArchiveModal(false);
+    sysLog(`${staleProjects.length} stale projects archived locally and purged from active memory.`, 'info');
+  };
+
   return (
     <div 
       id="dashboard-root"
-      className="flex-1 p-6 md:p-8 lg:p-12 overflow-y-auto custom-scrollbar bg-background selection:bg-primary selection:text-on-primary transition-colors duration-300"
+      className="flex-1 p-6 md:p-8 lg:p-12 overflow-y-auto custom-scrollbar bg-background selection:bg-primary selection:text-on-primary transition-colors duration-300 relative"
     >
       <div className="max-w-7xl mx-auto grid grid-cols-1 gap-12">
         
         {/* Header Section */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 m3-elevation-1 bg-surface-container p-8 lg:p-10 rounded-3xl border border-outline-variant/30">
-          <div className="space-y-4">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 m3-elevation-1 bg-surface-container p-8 lg:p-10 rounded-3xl border border-outline-variant/30 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />
+          <div className="space-y-4 relative z-10">
             <div className="flex items-center gap-3">
               <div className="w-1.5 h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(var(--color-primary),0.5)]" />
               <span className="text-xs font-bold text-primary uppercase tracking-widest opacity-80">System Operational</span>
@@ -68,34 +102,62 @@ export default function Dashboard() {
           </button>
         </header>
 
+        {/* Stale Project Banner */}
+        <AnimatePresence>
+          {staleProjects.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -20, height: 0 }}
+              className="bg-secondary-container/50 border border-secondary/50 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center text-secondary">
+                  <Archive className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-on-surface uppercase tracking-tight">Stale Projects Detected</h3>
+                  <p className="text-sm text-on-surface-variant opacity-80">You have {staleProjects.length} project(s) inactive for over 30 days. Archive them to local storage to declutter your workspace.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowArchiveModal(true)}
+                className="whitespace-nowrap px-6 py-3 bg-secondary text-on-secondary rounded-2xl font-bold uppercase tracking-wider text-xs hover:scale-105 active:scale-95 transition-all shadow-md"
+              >
+                Review Archive
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Stats Grid Section */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+           <DashboardStat 
+             title="Total Projects" 
+             value={projects.length.toString()} 
+             percent={Math.min(projects.length * 5, 100)} 
+             icon={<Workflow className="w-7 h-7" />}
+             color="primary"
+           />
+           <DashboardStat 
+             title="Total Scenes Created" 
+             value={totalScenes.toString()} 
+             percent={Math.min(totalScenes * 2, 100)} 
+             icon={<Layout className="w-7 h-7" />}
+             color="secondary"
+           />
+           <DashboardStat 
+             title="Total Synthesis Time" 
+             value={`${totalSynthesisTime}s`} 
+             percent={Math.min(totalSynthesisTime / 10, 100)} 
+             icon={<Zap className="w-7 h-7" />}
+             color="tertiary"
+           />
            <DashboardStat 
              title="Active Nodes" 
              value="14 / 20" 
              percent={70} 
              icon={<Cpu className="w-7 h-7" />}
-             color="primary"
-           />
-           <DashboardStat 
-             title="Neural Sync" 
-             value="99.9%" 
-             percent={99.9} 
-             icon={<Globe className="w-7 h-7" />}
-             color="secondary"
-           />
-           <DashboardStat 
-             title="Thread Load" 
-             value="28%" 
-             percent={28} 
-             icon={<Zap className="w-7 h-7" />}
-             color="tertiary"
-           />
-           <DashboardStat 
-             title="Logic Clusters" 
-             value={projects.length.toString()} 
-             percent={Math.min(projects.length * 10, 100)} 
-             icon={<Workflow className="w-7 h-7" />}
              color="primary"
            />
         </section>
@@ -186,6 +248,47 @@ export default function Dashboard() {
           </div>
         </section>
       </div>
+
+      <AnimatePresence>
+        {showArchiveModal && (
+          <motion.div 
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             exit={{ opacity: 0 }}
+             className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-6"
+          >
+             <motion.div 
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="bg-surface-container border border-outline-variant/30 rounded-[3rem] p-10 max-w-lg w-full shadow-2xl flex flex-col"
+             >
+                <div className="w-20 h-20 bg-secondary/20 rounded-full flex items-center justify-center text-secondary mb-6 mx-auto">
+                    <Archive className="w-10 h-10" />
+                </div>
+                <h2 className="text-3xl font-black uppercase tracking-tight text-on-surface text-center mb-4">Archive Stale Projects</h2>
+                <p className="text-on-surface-variant text-center opacity-80 leading-relaxed max-w-sm mx-auto mb-8">
+                   You are about to download a local backup of {staleProjects.length} stale project(s) and remove them from active memory. This action reduces interface clutter.
+                </p>
+                <div className="flex gap-4 w-full">
+                    <button 
+                       onClick={() => setShowArchiveModal(false)}
+                       className="flex-1 py-4 rounded-2xl font-bold uppercase tracking-widest text-xs border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface"
+                    >
+                       Cancel
+                    </button>
+                    <button 
+                       onClick={archiveStaleProjects}
+                       className="flex-1 py-4 bg-secondary text-on-secondary rounded-2xl font-bold uppercase tracking-widest text-xs hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 m3-elevation-2"
+                    >
+                       <Download className="w-4 h-4" />
+                       Export & Purge
+                    </button>
+                </div>
+             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -222,8 +325,8 @@ function DashboardStat({ title, value, percent, icon, color }: {
         <div className={`w-14 h-14 ${theme.icon} rounded-2xl flex items-center justify-center shadow-sm transition-transform group-hover:scale-110`}>
           {icon}
         </div>
-        <div className="text-right">
-          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1 opacity-80">{title}</p>
+        <div className="text-right flex flex-col justify-end">
+          <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1 opacity-80">{title}</p>
           <p className="text-2xl font-black text-on-surface uppercase tracking-tight">{value}</p>
         </div>
       </div>
@@ -240,5 +343,6 @@ function DashboardStat({ title, value, percent, icon, color }: {
     </div>
   );
 }
+
 
 

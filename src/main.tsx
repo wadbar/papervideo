@@ -27,14 +27,21 @@ window.addEventListener('unhandledrejection', (event) => {
 const initTelemetry = () => {
     setInterval(() => {
         const memory = (performance as any).memory;
+        let isCritical = false;
         if (memory) {
-            const usedMB = Math.round(memory.usedJSHeapSize / 1024 / 1024);
-            const totalMB = Math.round(memory.totalJSHeapSize / 1024 / 1024);
-            if (usedMB > totalMB * 0.8) {
-                sysLog(`RESOURCE_CRITICAL: high memory pressure detected (${usedMB}MB / ${totalMB}MB)`, 'warn');
+            const used = memory.usedJSHeapSize;
+            const limit = memory.jsHeapSizeLimit || memory.totalJSHeapSize;
+            if (used > limit * 0.8) {
+                isCritical = true;
+                sysLog(`RESOURCE_CRITICAL: high memory pressure detected (${Math.round(used/1024/1024)}MB / ${Math.round(limit/1024/1024)}MB)`, 'warn');
             }
         }
-    }, 10000);
+        
+        // Dispatch industrial memory event for observers to consume (e.g. VideoStudio memory-aware batching)
+        if (isCritical) {
+            window.dispatchEvent(new CustomEvent('vram-pressure-critical', { detail: { timestamp: Date.now() } }));
+        }
+    }, 15000); // 15s interval for system tracing
 };
 
 initTelemetry();

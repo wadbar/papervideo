@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Music, 
   Mic, 
@@ -15,6 +15,101 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useSettingsStore } from '../core/store/useSettingsStore';
 import { VideoProject } from '../core/domain/types';
+
+const AudioWaveformVisualizer = ({ narrationAnalyser, musicAnalyser }: { narrationAnalyser: AnalyserNode | null, musicAnalyser: AnalyserNode | null }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!canvasRef.current || (!narrationAnalyser && !musicAnalyser)) return;
+
+    const workerCode = `
+      let canvas, ctx;
+      self.onmessage = (e) => {
+        if (e.data.type === 'init') {
+            canvas = e.data.canvas;
+            ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+        } else if (e.data.type === 'render' && ctx) {
+            const narData = e.data.narrationData;
+            const musData = e.data.musicData;
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            ctx.fillStyle = '#0f172a'; // Background matching surface
+            ctx.fillRect(0, 0, width, height);
+            
+            const drawWave = (dataArray, color, offset, flip) => {
+                if (!dataArray) return;
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = color;
+                ctx.beginPath();
+                
+                const sliceWidth = width * 1.0 / dataArray.length;
+                let x = 0;
+                
+                for (let i = 0; i < dataArray.length; i++) {
+                    const v = dataArray[i] / 128.0;
+                    let y = v * height / 4;
+                    if (flip) y = -y;
+                    y += offset;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    x += sliceWidth;
+                }
+                ctx.lineTo(canvas.width, offset);
+                ctx.stroke();
+            };
+
+            // draw music top, narration bottom
+            drawWave(musData, '#f43f5e', height * 0.3, false); // Rose for music
+            drawWave(narData, '#38bdf8', height * 0.7, true); // Sky for narration
+        }
+      };
+    `;
+
+    const blob = new Blob([workerCode], {type: 'application/javascript'});
+    const url = URL.createObjectURL(blob);
+    const worker = new Worker(url);
+    
+    let offscreen: OffscreenCanvas;
+    try {
+        offscreen = canvasRef.current.transferControlToOffscreen();
+        worker.postMessage({ type: 'init', canvas: offscreen }, [offscreen as any]);
+    } catch(e) {
+        console.warn("OffscreenCanvas not fully supported");
+        worker.terminate();
+        URL.revokeObjectURL(url);
+        return;
+    }
+
+    const narData = narrationAnalyser ? new Uint8Array(narrationAnalyser.frequencyBinCount) : null;
+    const musData = musicAnalyser ? new Uint8Array(musicAnalyser.frequencyBinCount) : null;
+    
+    let rafId: number;
+    const renderLoop = () => {
+       if (narrationAnalyser && narData) narrationAnalyser.getByteTimeDomainData(narData);
+       if (musicAnalyser && musData) musicAnalyser.getByteTimeDomainData(musData);
+       worker.postMessage({ type: 'render', narrationData: narData, musicData: musData }, []);
+       rafId = requestAnimationFrame(renderLoop);
+    };
+    rafId = requestAnimationFrame(renderLoop);
+
+    return () => {
+       if (rafId) cancelAnimationFrame(rafId);
+       worker.terminate();
+       URL.revokeObjectURL(url);
+    };
+  }, [narrationAnalyser, musicAnalyser]);
+
+  if (!narrationAnalyser && !musicAnalyser) return null;
+
+  return (
+    <div className="w-full flex-col flex items-center justify-center relative mt-6 mb-2">
+       <span className="absolute top-2 left-4 text-[8px] font-black uppercase tracking-widest text-on-surface-variant z-10 opacity-70">OFFSCREEN_CANVAS_ACTIVE</span>
+       <canvas ref={canvasRef} width={800} height={120} className="w-full h-24 bg-surface-variant/20 rounded-2xl border border-outline-variant/30 overflow-hidden" />
+    </div>
+  );
+};
 
 interface AudioBoothProps {
   project: VideoProject;
@@ -38,6 +133,7 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
   const [autoDucking, setAutoDucking] = useState(project.audio?.autoDucking ?? true);
   const [speechSpeed, setSpeechSpeed] = useState<'slow' | 'normal' | 'fast'>('normal');
   const [mixAudio, setMixAudio] = useState<{ narration: HTMLAudioElement | null, music: HTMLAudioElement | null }>({ narration: null, music: null });
+  const [mixAnalysers, setMixAnalysers] = useState<{ narration: AnalyserNode | null, music: AnalyserNode | null }>({ narration: null, music: null });
 
   const { getAIProviderInstance, clonedVoices, addClonedVoice } = useSettingsStore();
 
@@ -133,11 +229,19 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
     }
   };
 
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const duckingRafRef = useRef<number | null>(null);
+
   useEffect(() => {
     return () => {
       if (activeAudio) activeAudio.pause();
       if (mixAudio.narration) mixAudio.narration.pause();
       if (mixAudio.music) mixAudio.music.pause();
+      if (duckingRafRef.current) cancelAnimationFrame(duckingRafRef.current);
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close().catch(console.error);
+        audioCtxRef.current = null;
+      }
     };
   }, [activeAudio, mixAudio]);
 
@@ -156,6 +260,16 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
       mixAudio.music.currentTime = 0;
     }
     setMixAudio({ narration: null, music: null });
+    setMixAnalysers({ narration: null, music: null });
+    
+    if (duckingRafRef.current) {
+      cancelAnimationFrame(duckingRafRef.current);
+      duckingRafRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close().catch(console.error);
+      audioCtxRef.current = null;
+    }
   };
 
   const previewNarration = async () => {
@@ -238,21 +352,96 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
     }
     stopActiveAudio();
     
+    let AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     const narrationAudio = new Audio(project.audio.narrationUrl);
     const musicAudio = new Audio(project.audio.musicUrl);
     
+    narrationAudio.crossOrigin = "anonymous";
+    musicAudio.crossOrigin = "anonymous";
+
     narrationAudio.volume = Math.min(volume, 1);
     musicAudio.volume = Math.min(musicVolume, 1);
     musicAudio.loop = true;
 
     setMixAudio({ narration: narrationAudio, music: musicAudio });
+
+    if (autoDucking && AudioContextClass) {
+        try {
+            const ctx = new AudioContextClass();
+            audioCtxRef.current = ctx;
+            
+            const narrationSource = ctx.createMediaElementSource(narrationAudio);
+            const musicSource = ctx.createMediaElementSource(musicAudio);
+            
+            const narrationGain = ctx.createGain();
+            const musicGain = ctx.createGain();
+            
+            narrationGain.gain.value = 1; // Base element volume handles actual volume
+            musicGain.gain.value = 1;
+            
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = 0.3;
+            
+            const narrationAnalyser = ctx.createAnalyser();
+            narrationAnalyser.fftSize = 512;
+            
+            const musicAnalyser = ctx.createAnalyser();
+            musicAnalyser.fftSize = 512;
+            
+            narrationSource.connect(analyser); // For ducking
+            analyser.connect(narrationGain);
+            narrationGain.connect(narrationAnalyser);
+            narrationAnalyser.connect(ctx.destination);
+            
+            musicSource.connect(musicGain);
+            musicGain.connect(musicAnalyser);
+            musicAnalyser.connect(ctx.destination);
+            
+            setMixAnalysers({ narration: narrationAnalyser, music: musicAnalyser });
+            
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            const duckingThreshold = 10; // Amplitude threshold to trigger ducking
+            const duckedVolume = 0.2; // 20% of original music volume when ducked
+            
+            const updateDucking = () => {
+                if (narrationAudio.paused || narrationAudio.ended) {
+                    musicGain.gain.setTargetAtTime(1, ctx.currentTime, 0.5);
+                    return;
+                }
+                analyser.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+                const avgAmplitude = sum / dataArray.length;
+                
+                if (avgAmplitude > duckingThreshold) {
+                    musicGain.gain.setTargetAtTime(duckedVolume, ctx.currentTime, 0.1); 
+                } else {
+                    musicGain.gain.setTargetAtTime(1, ctx.currentTime, 0.5);
+                }
+                duckingRafRef.current = requestAnimationFrame(updateDucking);
+            };
+            duckingRafRef.current = requestAnimationFrame(updateDucking);
+            
+            if (ctx.state === 'suspended') {
+                 ctx.resume();
+            }
+        } catch(e) {
+             console.warn("Audio Context ducking failed, falling back to static volume duck.", e);
+             musicAudio.volume = Math.min(musicVolume * 0.3, 1);
+        }
+    } else if (autoDucking) {
+        musicAudio.volume = Math.min(musicVolume * 0.3, 1);
+    }
     
-    narrationAudio.play();
-    musicAudio.play();
+    narrationAudio.play().catch(e => console.error("Playback interrupted", e));
+    musicAudio.play().catch(e => console.error("Playback interrupted", e));
 
     narrationAudio.onended = () => {
       musicAudio.pause();
       setMixAudio({ narration: null, music: null });
+      if (duckingRafRef.current) cancelAnimationFrame(duckingRafRef.current);
+      if (audioCtxRef.current) audioCtxRef.current.close().catch(console.error);
     };
   };
 
@@ -679,6 +868,7 @@ export default function AudioBooth({ project, onUpdate, onPrev, onNext }: AudioB
             </div>
           </div>
         </div>
+        <AudioWaveformVisualizer narrationAnalyser={mixAnalysers.narration} musicAnalyser={mixAnalysers.music} />
       </div>
 
       <AnimatePresence>

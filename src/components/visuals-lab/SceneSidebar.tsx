@@ -68,7 +68,7 @@ export default function SceneSidebar() {
   };
 
   return (
-    <aside className="h-full flex flex-col overflow-hidden bg-surface-variant/10 rounded-3xl border border-outline-variant/50">
+    <motion.aside layout className="h-full flex flex-col overflow-hidden bg-surface-variant/10 rounded-3xl border border-outline-variant/50">
       {/* Storyline Header */}
       <div className="p-5 border-b border-outline-variant bg-surface-variant/20 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -264,6 +264,6 @@ export default function SceneSidebar() {
           })}
         </AnimatePresence>
       </Reorder.Group>
-    </aside>
+    </motion.aside>
   );
 }
