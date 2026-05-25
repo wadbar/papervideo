@@ -24,7 +24,13 @@ import {
   Video,
   Monitor,
   Clock,
-  Activity
+  Activity,
+  Scissors,
+  RotateCw,
+  Zap,
+  Ghost,
+  Cpu,
+  Move
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { VideoProject } from '../core/domain/types';
@@ -883,27 +889,47 @@ export default function VideoExporter({ project, onUpdate, onPrev }: VideoExport
               </div>
 
               <div className="bg-surface rounded-[2.5rem] p-8 border border-outline-variant/30 shadow-sm space-y-6">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface-variant flex items-center gap-3">
-                  <Layers className="w-4 h-4 text-primary" />
-                  Scene Transitions
-                </h4>
-                <div className="space-y-6 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                  {project.scenes.map((scene, idx) => (
-                    idx < project.scenes.length - 1 && (
-                      <div key={idx} className="p-4 bg-surface-variant/5 rounded-3xl border border-outline-variant/10">
-                        <TransitionSelector 
-                          currentTransition={scene.transition || 'Cut'}
-                          onSelect={(t) => {
-                            const newScenes = [...project.scenes];
-                            newScenes[idx].transition = t;
-                            onUpdate({ ...project, scenes: newScenes });
-                          }}
-                          isSuggesting={isSuggestingTransition}
-                          onSuggest={() => handleSuggestTransition(idx)}
-                        />
-                      </div>
-                    )
-                  ))}
+                <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
+                   <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface-variant flex items-center gap-3">
+                     <Layers className="w-4 h-4 text-primary" />
+                     Global Transition Library
+                   </h4>
+                   <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest opacity-60">Batch Apply</span>
+                </div>
+                
+                <div className="p-5 bg-surface-variant/5 rounded-3xl border border-outline-variant/10 space-y-4">
+                  <p className="text-[10px] font-bold text-on-surface-variant/80 uppercase tracking-widest leading-relaxed">Instantly synchronize a unified visual flow across all sequence modules in the active timeline.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: 'Cut', icon: Scissors },
+                      { id: 'Fade Through Black', icon: Layers },
+                      { id: 'Cross Dissolve', icon: Ghost },
+                      { id: 'Zoom Blur', icon: Maximize2 },
+                      { id: 'Glitch', icon: Cpu },
+                      { id: 'Slide', icon: Move },
+                      { id: 'Light Leak', icon: Zap },
+                      { id: 'Morph', icon: RotateCw }
+                    ].map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          const newScenes = project.scenes.map((scene, idx) => {
+                            if (idx < project.scenes.length - 1) {
+                              return { ...scene, transition: t.id };
+                            }
+                            return scene;
+                          });
+                          const updated = { ...project, scenes: newScenes };
+                          onUpdate(updated);
+                          updateProject(updated);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 border border-outline-variant/30 hover:border-primary/50 hover:bg-primary/5 bg-surface rounded-2xl transition-all shadow-sm group active:scale-95 text-on-surface"
+                      >
+                         <t.icon className="w-3.5 h-3.5 text-on-surface-variant group-hover:text-primary transition-colors" />
+                         <span className="text-[10px] font-black uppercase tracking-wider group-hover:text-primary transition-colors">{t.id}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
           </div>
